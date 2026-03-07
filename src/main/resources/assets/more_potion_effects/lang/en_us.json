@@ -1,0 +1,19 @@
+{
+  "item_group.more_potion_effects": "More Potion Effects",
+
+  "more_potion_effects.configuration.title": "MorePotionEffectsMod Configs",
+  "effect.more_potion_effects.effect_siphon": "Effect Siphon",
+  "effect.more_potion_effects.immune": "Immune",
+  "effect.more_potion_effects.immortal": "Immortal",
+  "effect.more_potion_effects.imprison": "Imprison",
+  "effect.more_potion_effects.lock": "Lock",
+  "effect.more_potion_effects.random_effect": "Random Effect",
+  "effect.more_potion_effects.random_negative_effect": "Random Negative Effect",
+  "effect.more_potion_effects.random_positive_effect": "Random Positive Effect",
+  "effect.more_potion_effects.reuse": "Reuse",
+  "effect.more_potion_effects.strong_heart": "Strong Heart",
+  "effect.more_potion_effects.attack_aoe": "Attack Aoe",
+  "effect.more_potion_effects.adaptation": "Adaptation",
+  "effect.more_potion_effects.true_damage": "True Damage",
+  "effect.more_potion_effects.static_life": "Static Life"
+}

@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "more_potion_effects:highly_toxic_damage",
+    "more_potion_effects:internal_injury",
+    "more_potion_effects:static_damage"
+  ]
+}

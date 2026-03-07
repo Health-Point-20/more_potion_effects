@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.yixi_xun.more_potion_effects.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "LivingEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

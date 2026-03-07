@@ -1,0 +1,19 @@
+{
+  "item_group.more_potion_effects": "更多药水效果",
+
+  "more_potion_effects.configuration.title": "更多药水效果配置",
+  "effect.more_potion_effects.effect_siphon": "效果窃取",
+  "effect.more_potion_effects.immune": "§e免疫",
+  "effect.more_potion_effects.immortal": "§e不死",
+  "effect.more_potion_effects.imprison": "禁锢",
+  "effect.more_potion_effects.lock": "锁定",
+  "effect.more_potion_effects.random_effect": "随机效果",
+  "effect.more_potion_effects.random_negative_effect": "随机负面效果",
+  "effect.more_potion_effects.random_positive_effect": "随机正面效果",
+  "effect.more_potion_effects.reuse": "复用",
+  "effect.more_potion_effects.strong_heart": "强心",
+  "effect.more_potion_effects.attack_aoe": "范围攻击",
+  "effect.more_potion_effects.adaptation": "适应性",
+  "effect.more_potion_effects.true_damage": "真伤",
+  "effect.more_potion_effects.static_life": "生命静止"
+}
