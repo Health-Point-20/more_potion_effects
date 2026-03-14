@@ -2,8 +2,11 @@ package com.yixi_xun.more_potion_effects.event;
 
 import com.yixi_xun.more_potion_effects.api.EffectUtils;
 import com.yixi_xun.more_potion_effects.mob_effects.*;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.EventPriority;
@@ -13,7 +16,6 @@ import net.neoforged.fml.util.thread.SidedThreadGroups;
 import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
 
 import java.util.Collection;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static com.yixi_xun.more_potion_effects.MPEConfig.*;
@@ -37,8 +39,12 @@ public class EffectEvents {
         CompoundTag persistentData = entity.getPersistentData();
 
         // 获取效果和实体的注册名
-        String effectId = Objects.requireNonNull(BuiltInRegistries.MOB_EFFECT.getKey(effectToApply.getEffect().value())).toString();
-        String entityId = Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType())).toString();
+        ResourceLocation effectKey = BuiltInRegistries.MOB_EFFECT.getKey(effectToApply.getEffect().value());
+
+        if (effectKey == null) return;
+
+        String effectId = effectKey.toString();
+        String entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
 
         /*// 避免递归
         if (persistentData.getBoolean("dispelling_in_progress") || persistentData.getBoolean("Upgrading")) {
@@ -47,8 +53,18 @@ public class EffectEvents {
 
         // 免疫检查
         var immune = entity.getEffect(IMMUNE);
-        if (immune != null && ImmuneMobEffect.getImmuneEffects(immune.getAmplifier()).contains(effectToApply.getEffect())) {
+       /* if (immune != null && ImmuneMobEffect.getImmuneEffects(immune.getAmplifier()).contains(effectToApply.getEffect())) {
             event.setResult(DO_NOT_APPLY);
+        }*/
+        if (immune != null) {
+            Holder<MobEffect> effect = effectToApply.getEffect();
+            var immuneMap = ImmuneMobEffect.getImmuneMap(immune.getAmplifier());
+            if (immuneMap.containsKey(effect)) {
+                int immuneAmplifier = immuneMap.get(effect);
+                if (immuneAmplifier >= effectToApply.getAmplifier()) {
+                    event.setResult(DO_NOT_APPLY);
+                }
+            }
         }
 
         if (FORCE_EFFECTS.get().contains(effectId) && !BAN_LIST.get().contains(effectId)) {

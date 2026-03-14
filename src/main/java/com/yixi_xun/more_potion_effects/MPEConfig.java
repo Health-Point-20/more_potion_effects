@@ -18,6 +18,7 @@ public class MPEConfig {
     public static final ModConfigSpec.ConfigValue<List<? extends String>> LEVEL_3_LIST;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> LEVEL_4_LIST;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> LEVEL_JUDGMENT_EFFECTS;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> IMMUNE_EFFECTS;
 
     static {
         BUILDER.push("Effects");
@@ -40,7 +41,13 @@ public class MPEConfig {
         LEVEL_3_LIST = BUILDER.comment("免疫III免疫的效果种类").defineList("Level 3 List", List.of("more_potion_effects:corrosion", "more_potion_effects:wane", "more_potion_effects:armor_broken", "more_potion_effects:broken_magic_shield",
                 "more_potion_effects:magic_inhibition", "more_potion_effects:weakening_recovery", "more_potion_effects:bleeding", "more_potion_effects:aggro", "more_potion_effects:deflagration"), () -> "", entry -> true);
         LEVEL_4_LIST = BUILDER.comment("免疫IV免疫的效果种类").defineList("Level 4 List", List.of("more_potion_effects:dispel", "more_potion_effects:injury_outburst", "more_potion_effects:potion_antagonism", "more_potion_effects:death"), () -> "", entry -> true);
-        LEVEL_JUDGMENT_EFFECTS = BUILDER.comment("需比免疫的等级低才会被免疫的效果").defineList("Level Judgment Effects", List.of(), () -> "", entry -> true);
+        LEVEL_JUDGMENT_EFFECTS = BUILDER.comment("需比免疫的等级低才会被免疫的效果").defineList("Level Judgment Effects", List.of(
+                "more_potion_effects:virus, minecraft:unluck, minecraft:hunger, minecraft:slowness, minecraft:blindness, minecraft:poison, minecraft:nausea",
+                "minecraft:wither, minecraft:mining_fatigue, minecraft:weakness, minecraft:darkness, more_potion_effects:highly_toxic, more_potion_effects:injury_accumulation, more_potion_effects:fear, more_potion_effects:combustion, more_potion_effects:spatial_anchor, more_potion_effects:slot_lock",
+                "more_potion_effects:corrosion, more_potion_effects:wane, more_potion_effects:armor_broken, more_potion_effects:broken_magic_shield, more_potion_effects:magic_inhibition, more_potion_effects:weakening_recovery, more_potion_effects:bleeding, more_potion_effects:aggro, more_potion_effects:deflagration",
+                "more_potion_effects:dispel, more_potion_effects:injury_outburst, more_potion_effects:potion_antagonism, more_potion_effects:death"
+        ), () -> "", entry -> true);
+        IMMUNE_EFFECTS = BUILDER.comment("免疫所免疫的效果").defineList("Immune Effects", List.of(""), () -> "", entry -> true);
 
         BUILDER.pop();
 

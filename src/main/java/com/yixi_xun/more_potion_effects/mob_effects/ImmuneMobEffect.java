@@ -5,14 +5,10 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.yixi_xun.more_potion_effects.MPEConfig.*;
@@ -30,7 +26,6 @@ public class ImmuneMobEffect extends MobEffect {
 	}
 
 	public static List<Holder<MobEffect>> getImmuneEffects(int amplifier) {
-
 		List<MobEffect> immuneEffects = new ArrayList<>();
 
         // 从配置中获取各等级免疫效果
@@ -69,6 +64,26 @@ public class ImmuneMobEffect extends MobEffect {
 				.filter(e -> e != IMMUNE.get())
 				.map(Holder::direct)
 				.collect(Collectors.toList());
+	}
+
+	public static Map<Holder<MobEffect>, Integer> getImmuneMap(int amplifier) {
+		Map<Holder<MobEffect>,Integer> immuneList = new HashMap<>();
+		for (int i = 0; i <= amplifier; i++) {
+			Arrays.asList(IMMUNE_EFFECTS.get().get(i).split(",")).forEach(effectConfig -> {
+				String[] parts = effectConfig.split("-");
+				if (parts.length == 2) {
+					String effectName = parts[0];
+					int level = Integer.parseInt(parts[1]);
+					Optional<Holder.Reference<MobEffect>> effect = BuiltInRegistries.MOB_EFFECT.getHolder(ResourceLocation.parse(effectName));
+                    effect.ifPresent(mobEffectReference -> immuneList.put(mobEffectReference, level));
+				} else if (parts.length == 1){
+					Optional<Holder.Reference<MobEffect>> effect = BuiltInRegistries.MOB_EFFECT.getHolder(ResourceLocation.parse(parts[0]));
+                    effect.ifPresent(mobEffectReference -> immuneList.put(mobEffectReference, -1));
+
+				}
+			});
+		}
+		return immuneList;
 	}
 
 	@Override
