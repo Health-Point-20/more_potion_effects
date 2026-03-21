@@ -9,7 +9,6 @@ import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.yixi_xun.more_potion_effects.MPEConfig.*;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.IMMUNE;
@@ -17,53 +16,6 @@ import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffec
 public class ImmuneMobEffect extends MobEffect {
 	public ImmuneMobEffect() {
 		super(MobEffectCategory.BENEFICIAL, -103);
-	}
-	private static List<MobEffect> getEffectsFromConfig(List<? extends String> effectList) {
-		return effectList.stream()
-				.map(effectName -> BuiltInRegistries.MOB_EFFECT.get(ResourceLocation.tryParse(effectName)))
-				.filter(Objects::nonNull)
-				.collect(Collectors.toList());
-	}
-
-	public static List<Holder<MobEffect>> getImmuneEffects(int amplifier) {
-		List<MobEffect> immuneEffects = new ArrayList<>();
-
-        // 从配置中获取各等级免疫效果
-		if (amplifier >= 0) {
-			immuneEffects.addAll(getEffectsFromConfig(LEVEL_1_LIST.get()));
-		}
-		if (amplifier >= 1) {
-			immuneEffects.addAll(getEffectsFromConfig(LEVEL_2_LIST.get()));
-		}
-		if (amplifier >= 2) {
-			immuneEffects.addAll(getEffectsFromConfig(LEVEL_3_LIST.get()));
-		}
-		if (amplifier >= 3) {
-			immuneEffects.addAll(getEffectsFromConfig(LEVEL_4_LIST.get()));
-		}
-
-		// 处理特殊等级的免疫
-		if (amplifier == 4) {
-			immuneEffects.clear();
-			immuneEffects.addAll(BuiltInRegistries.MOB_EFFECT.stream()
-					.filter(e -> e.getCategory() == MobEffectCategory.HARMFUL)
-					.toList());
-		}
-		if (amplifier == 5) {
-			immuneEffects.clear();
-			immuneEffects.addAll(BuiltInRegistries.MOB_EFFECT.stream()
-					.filter(e -> e.getCategory() != MobEffectCategory.BENEFICIAL)
-					.toList());
-		}
-		if (amplifier >= 6) {
-			immuneEffects.clear();
-			immuneEffects.addAll(BuiltInRegistries.MOB_EFFECT.stream().toList());
-		}
-
-		return immuneEffects.stream()
-				.filter(e -> e != IMMUNE.get())
-				.map(Holder::direct)
-				.collect(Collectors.toList());
 	}
 
 	public static Map<Holder<MobEffect>, Integer> getImmuneMap(int amplifier) {
@@ -90,7 +42,7 @@ public class ImmuneMobEffect extends MobEffect {
 	public void onEffectAdded(@NotNull LivingEntity entity, int amplifier) {
 		super.onEffectAdded(entity, amplifier);
 		// 添加时立即清理已有负面效果
-		clearHarmfulEffects(entity, amplifier);
+		clearEffects(entity, amplifier);
 	}
 
 	@Override
@@ -98,12 +50,26 @@ public class ImmuneMobEffect extends MobEffect {
 		return true; // 每 tick 生效一次
 	}
 
-	private void clearHarmfulEffects(LivingEntity entity, int amplifier) {
-		List<Holder<MobEffect>> immuneEffects = getImmuneEffects(amplifier);
-		for (Holder<MobEffect> effect : immuneEffects) {
+	private void clearEffects(LivingEntity entity, int amplifier) {
+		var immuneMap = ImmuneMobEffect.getImmuneMap(amplifier);
+		for (var effect : immuneMap.keySet()) {
 			if (entity.hasEffect(effect)) {
-				entity.removeEffect(effect);
+				int immuneAmplifier = immuneMap.get(effect);
+				if (immuneAmplifier >= amplifier) {
+					entity.removeEffect(effect);
+				}
 			}
+		}
+
+		if (amplifier > immuneMap.size() + 2) {
+			entity.getActiveEffects().stream().filter(effect -> effect.getEffect() != IMMUNE)
+					.forEach(effect -> entity.removeEffect(effect.getEffect()));
+		} else if (amplifier + 1 > immuneMap.size()) {
+			entity.getActiveEffects().stream().filter(effect -> !effect.getEffect().value().isBeneficial())
+					.forEach(effect -> entity.removeEffect(effect.getEffect()));
+		} else if (amplifier > immuneMap.size()) {
+			entity.getActiveEffects().stream().filter(effect -> effect.getEffect().value().getCategory() == MobEffectCategory.HARMFUL)
+					.forEach(effect -> entity.removeEffect(effect.getEffect()));
 		}
 	}
 }

@@ -7,6 +7,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.EventPriority;
@@ -58,12 +59,19 @@ public class EffectEvents {
         }*/
         if (immune != null) {
             Holder<MobEffect> effect = effectToApply.getEffect();
+            // 获取可免疫的效果的映射关系
             var immuneMap = ImmuneMobEffect.getImmuneMap(immune.getAmplifier());
             if (immuneMap.containsKey(effect)) {
                 int immuneAmplifier = immuneMap.get(effect);
                 if (immuneAmplifier >= effectToApply.getAmplifier()) {
                     event.setResult(DO_NOT_APPLY);
                 }
+            } else if (immune.getAmplifier() > immuneMap.size() + 2) {
+                event.setResult(DO_NOT_APPLY);
+            } else if (immune.getAmplifier() + 1 > immuneMap.size() && !effectToApply.getEffect().value().isBeneficial()) {
+                event.setResult(DO_NOT_APPLY);
+            } else if (immune.getAmplifier() > immuneMap.size() && effectToApply.getEffect().value().getCategory() == MobEffectCategory.HARMFUL) {
+                event.setResult(DO_NOT_APPLY);
             }
         }
 
