@@ -1,6 +1,6 @@
 package com.yixi_xun.more_potion_effects.mixin;
 
-import com.yixi_xun.more_potion_effects.api.EffectAccessor;
+import com.yixi_xun.more_potion_effects.api.IEffectAccessor;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 import javax.annotation.Nullable;
 
 @Mixin(LivingEntity.class)
-public interface LivingEntityMixin extends EffectAccessor {
+public interface LivingEntityMixin extends IEffectAccessor {
 
     @Invoker("onEffectAdded")
     void callOnEffectAdded(MobEffectInstance effect, @Nullable Entity source);

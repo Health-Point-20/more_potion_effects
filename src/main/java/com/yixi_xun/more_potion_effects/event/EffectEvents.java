@@ -1,6 +1,7 @@
 package com.yixi_xun.more_potion_effects.event;
 
 import com.yixi_xun.more_potion_effects.api.EffectUtils;
+import com.yixi_xun.more_potion_effects.api.IMobEffectRemovable;
 import com.yixi_xun.more_potion_effects.mob_effects.*;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -13,11 +14,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.util.thread.SidedThreadGroups;
 import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
-
-import java.util.Collection;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static com.yixi_xun.more_potion_effects.MPEConfig.*;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.*;
@@ -25,13 +22,6 @@ import static net.neoforged.neoforge.event.entity.living.MobEffectEvent.Applicab
 
 @EventBusSubscriber
 public class EffectEvents {
-    private static final Collection<Runnable> removeQueue = new ConcurrentLinkedQueue<>();
-
-    // 当效果移除时处理的队列
-    public static void onEffectRemove(Runnable action) {
-        if (Thread.currentThread().getThreadGroup() == SidedThreadGroups.SERVER)
-            removeQueue.add(action);
-    }
 
     @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
     public static void onApplicable(MobEffectEvent.Applicable event) {
@@ -141,10 +131,13 @@ public class EffectEvents {
     public static void onEffectRemove(MobEffectEvent.Remove event) {
         LivingEntity entity = event.getEntity();
         CompoundTag nbt = entity.getPersistentData();
+        MobEffectInstance instance = event.getEffectInstance();
         // 处理效果移除
-        removeQueue.forEach(Runnable::run);
+        if (event.getEffect() instanceof IMobEffectRemovable effect) {
+            effect.onEffectRemoved(entity, instance);
+        }
 
-        handleLockEffectRemoval(entity, nbt, event.getEffectInstance(), event);
+        handleLockEffectRemoval(entity, nbt, instance, event);
 
     }
 
@@ -170,7 +163,7 @@ public class EffectEvents {
                 entity.removeEffect(LOCK);
                 entity.addEffect(new MobEffectInstance(
                         LOCK,
-                        (int) (effectInstance.getDuration() - 1200f / (effectInstance.getAmplifier() + 1f)), // 进行浮点除法计算
+                        (int) (effectInstance.getDuration() - 1200f / (effectInstance.getAmplifier() + 1f)),
                         effectInstance.getAmplifier(),
                         effectInstance.isAmbient(),
                         effectInstance.isVisible(),

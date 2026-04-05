@@ -13,12 +13,15 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
 
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
+
+import static net.neoforged.neoforge.common.NeoForge.EVENT_BUS;
 
 @EventBusSubscriber
 public class EffectUtils {
@@ -107,6 +110,32 @@ public class EffectUtils {
         }
     }
 
+    public static void forceUpdateEffect(LivingEntity entity, Holder<MobEffect> effect, MobEffectInstance newEffect, Entity source) {
+        if (entity == null || effect == null || newEffect == null) {
+            return;
+        }
+
+        LivingEntityMixin accessor = (LivingEntityMixin) entity;
+        MobEffectInstance existing = entity.getEffect(effect);
+
+        if (existing == null) {
+            forceAddEffect(entity, newEffect, source);
+            return;
+        }
+
+        EVENT_BUS.post(new MobEffectEvent.Added(entity, existing, newEffect, source));
+
+        // 在 Map 中用新实例替换旧实例
+        entity.getActiveEffectsMap().put(effect, newEffect);
+
+        try {
+            accessor.callOnEffectRemoved(existing);
+            accessor.callOnEffectAdded(newEffect, source);
+        } finally {
+            accessor.setEffectsDirty(true);
+        }
+    }
+
     public static void addRandomEffect(Entity entity, Holder<MobEffect> targetEffect, Supplier<Holder<MobEffect>> effectSupplier) {
         if (!(entity instanceof LivingEntity livingEntity)) {
             return;
@@ -115,7 +144,12 @@ public class EffectUtils {
         MobEffectInstance currentEffect = livingEntity.getEffect(targetEffect);
 
         if (currentEffect == null) return;
+
         int duration = currentEffect.getDuration();
+        // 如果是瞬时效果，则将持续时间转换为 ticks
+        if (currentEffect.getEffect().value().isInstantenous()) {
+            duration = duration / 20;
+        }
 
         // 等级递减逻辑：每个等级递减1，最低为0
         int amplifierLevel = Math.max(currentEffect.getAmplifier() - 1, 0);

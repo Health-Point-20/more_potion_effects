@@ -24,12 +24,12 @@ public class ImmuneMobEffect extends MobEffect {
 			Arrays.asList(IMMUNE_EFFECTS.get().get(i).split(",")).forEach(effectConfig -> {
 				String[] parts = effectConfig.split("-");
 				if (parts.length == 2) {
-					String effectName = parts[0];
-					int level = Integer.parseInt(parts[1]);
+					String effectName = parts[0].trim();
+					int level = Integer.parseInt(parts[1].trim());
 					Optional<Holder.Reference<MobEffect>> effect = BuiltInRegistries.MOB_EFFECT.getHolder(ResourceLocation.parse(effectName));
                     effect.ifPresent(mobEffectReference -> immuneList.put(mobEffectReference, level));
 				} else if (parts.length == 1){
-					Optional<Holder.Reference<MobEffect>> effect = BuiltInRegistries.MOB_EFFECT.getHolder(ResourceLocation.parse(parts[0]));
+					Optional<Holder.Reference<MobEffect>> effect = BuiltInRegistries.MOB_EFFECT.getHolder(ResourceLocation.parse(parts[0].trim()));
                     effect.ifPresent(mobEffectReference -> immuneList.put(mobEffectReference, -1));
 
 				}
@@ -55,7 +55,7 @@ public class ImmuneMobEffect extends MobEffect {
 		for (var effect : immuneMap.keySet()) {
 			if (entity.hasEffect(effect)) {
 				int immuneAmplifier = immuneMap.get(effect);
-				if (immuneAmplifier >= amplifier) {
+				if (immuneAmplifier >= amplifier || immuneAmplifier == -1) {
 					entity.removeEffect(effect);
 				}
 			}

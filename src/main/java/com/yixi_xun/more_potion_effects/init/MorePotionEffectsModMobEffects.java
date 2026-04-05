@@ -28,4 +28,6 @@ public class MorePotionEffectsModMobEffects {
 	public static final DeferredHolder<MobEffect, MobEffect> ADAPTATION = REGISTRY.register("adaptation", AdaptationMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> TRUE_DAMAGE = REGISTRY.register("true_damage", TrueDamageMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> STATIC_LIFE = REGISTRY.register("static_life", StaticLifeMobEffect::new);
+	public static final DeferredHolder<MobEffect, MobEffect> AGGRO = REGISTRY.register("aggro", AggroMobEffect::new);
+	public static final DeferredHolder<MobEffect, MobEffect> DECAY = REGISTRY.register("decay", DecayMobEffect::new);
 	}
