@@ -15,5 +15,8 @@
   "effect.more_potion_effects.attack_aoe": "Attack Aoe",
   "effect.more_potion_effects.adaptation": "Adaptation",
   "effect.more_potion_effects.true_damage": "True Damage",
-  "effect.more_potion_effects.static_life": "Static Life"
+  "effect.more_potion_effects.static_life": "Static Life",
+  "effect.more_potion_effects.aggro": "Aggro",
+  "effect.more_potion_effects.decay": "Decay",
+  "effect.more_potion_effects.extension": "Extension"
 }

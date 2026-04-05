@@ -15,5 +15,8 @@
   "effect.more_potion_effects.attack_aoe": "范围攻击",
   "effect.more_potion_effects.adaptation": "适应性",
   "effect.more_potion_effects.true_damage": "真伤",
-  "effect.more_potion_effects.static_life": "生命静止"
+  "effect.more_potion_effects.static_life": "生命静止",
+  "effect.more_potion_effects.aggro": "众矢之的",
+  "effect.more_potion_effects.decay": "衰变",
+  "effect.more_potion_effects.extension": "延时"
 }

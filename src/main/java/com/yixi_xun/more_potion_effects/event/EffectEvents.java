@@ -23,6 +23,33 @@ import static net.neoforged.neoforge.event.entity.living.MobEffectEvent.Applicab
 @EventBusSubscriber
 public class EffectEvents {
 
+    @SubscribeEvent
+    public static void onAdded(MobEffectEvent.Added event) {
+        handleExtensionEffect(event.getEntity(), event.getEffectInstance());
+    }
+
+    private static void handleExtensionEffect(LivingEntity entity, MobEffectInstance newEffect) {
+        MobEffectInstance extension = entity.getEffect(EXTENSION);
+        if (extension != null && EXTENSION_METHOD.get() == 0) {
+            int extensionLevel = extension.getAmplifier() + 1;
+            int extraDuration = 600 * extensionLevel;
+
+            if (!newEffect.getEffect().value().isInstantenous()) {
+                newEffect.update(new MobEffectInstance(
+                        newEffect.getEffect(),
+                        newEffect.getDuration() + 600 + extraDuration,
+                        newEffect.getAmplifier()
+                ));
+            } else {
+                newEffect.update(new MobEffectInstance(
+                        newEffect.getEffect(),
+                        newEffect.getDuration() + extensionLevel,
+                        newEffect.getAmplifier()
+                ));
+            }
+        }
+    }
+
     @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
     public static void onApplicable(MobEffectEvent.Applicable event) {
         LivingEntity entity = event.getEntity();
