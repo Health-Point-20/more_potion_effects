@@ -11,7 +11,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.*;
 
 public class DecayMobEffect extends MobEffect implements IMobEffectRemovable {
-	private static final ResourceLocation DECAY_HEALTH_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects","decay_health");	private static final double TICK_THRESHOLD = 20.0;
+	private static final ResourceLocation DECAY_HEALTH_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects","effect.decay");
+	private static final double TICK_THRESHOLD = 20.0;
 	private static final double MIN_HEALTH = 0.01;
 
 	public DecayMobEffect() {

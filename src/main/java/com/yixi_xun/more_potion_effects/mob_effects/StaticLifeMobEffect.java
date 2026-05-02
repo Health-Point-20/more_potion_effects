@@ -70,7 +70,7 @@ public class StaticLifeMobEffect extends MobEffect implements IMobEffectRemovabl
 	public void onEffectRemoved(@NotNull LivingEntity entity, MobEffectInstance instance) {
 		if (instance != null && entity.getPersistentData().getFloat("static_damage")
 				* Math.max(1 - (entity.hasEffect(STATIC_LIFE) ? instance.getAmplifier() : 0) * 0.2, 0) >= 0) {
-			MorePotionEffectsMod.queueServerWork(1, () -> {
+			MorePotionEffectsMod.queueServerWork(0, () -> {
 				entity.hurt(new DamageSource(entity.level().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.parse("more_potion_effects:static_damage")))),
 						(float) Math.min(entity.getPersistentData().getFloat("static_damage") * Math.max(
 										1 - (entity.hasEffect(STATIC_LIFE) ? instance.getAmplifier() : 0) * 0.2, 0),

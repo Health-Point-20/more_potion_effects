@@ -2,16 +2,23 @@ package com.yixi_xun.more_potion_effects.event.handler;
 
 import com.yixi_xun.more_potion_effects.MPEConfig;
 import com.yixi_xun.more_potion_effects.MorePotionEffectsMod;
+import com.yixi_xun.more_potion_effects.api.HurtManager;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -20,8 +27,12 @@ import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.text.DecimalFormat;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import static com.yixi_xun.more_potion_effects.MPEConfig.*;
+import static com.yixi_xun.more_potion_effects.api.ConfigHelper.evaluate;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.*;
 
 public class MPECombatHandler {
@@ -65,7 +76,82 @@ public class MPECombatHandler {
 
             handleEffectSiphon(attacker, target);
             handleEffectAoe(attacker, target, source, damage);
+            handleInjuryLink(target, damage, event);
         }
+    }
+
+    private static void handleInjuryLink(LivingEntity target, float damage, LivingIncomingDamageEvent event) {
+        MobEffectInstance injuryLink = target.getEffect(INJURY_LINK);
+        if (injuryLink == null) return;
+
+        if (target.level().isClientSide()) return;
+
+        int level = injuryLink.getAmplifier() + 1;
+        double radius = Math.max(evaluate(INJURY_LINK_RADIUS.get(), "level", level), 36.0);
+        Map<LivingEntity, Integer> partners = new HashMap<>();
+
+        List<LivingEntity> nearbyEntities = target.level().getEntitiesOfClass(
+                LivingEntity.class,
+                target.getBoundingBox().inflate(radius),
+                entity -> entity != target && entity.isAlive()  && entity.hasEffect(INJURY_LINK)
+        );
+
+        for (LivingEntity entity : nearbyEntities) {
+            if (isPartner(entity, target)) {
+                var entityInjuryLink = entity.getEffect(INJURY_LINK);
+                if (entityInjuryLink != null) {
+                    int entityLevel = entityInjuryLink.getAmplifier() + 1;
+                    partners.put(entity, entityLevel);
+                } else {
+                    partners.put(entity, 0);
+                }
+
+            }
+        }
+
+        int totalWeight = level;
+        for (int partnerLevel : partners.values()) {
+            totalWeight += partnerLevel;
+        }
+
+        float targetMaxHealth = target.getMaxHealth();
+
+        float remainingDamage = Math.min(damage, targetMaxHealth);
+        float targetDamage = damage * ((float) level / totalWeight);
+        remainingDamage -= targetDamage;
+
+        for (Map.Entry<LivingEntity, Integer> entry : partners.entrySet()) {
+            LivingEntity partner = entry.getKey();
+            int partnerLevel = entry.getValue();
+
+            float sharedDamage = remainingDamage * ((float) partnerLevel / (totalWeight - level));
+
+            HurtManager.extraHurt(partner, event.getSource(), sharedDamage);
+        }
+
+        if (damage > targetMaxHealth) {
+            event.setAmount(targetDamage + damage - targetMaxHealth);
+        } else {
+            event.setAmount(targetDamage);
+        }
+
+    }
+
+    private static boolean isPartner(LivingEntity entity, LivingEntity target) {
+        // 判断是否有主仆关系
+        if (entity instanceof OwnableEntity ownable && ownable.getOwner() == target
+                || target instanceof OwnableEntity ownableTarget && ownableTarget.getOwner() == entity) {
+            return true;
+        }
+
+        // 团队关系
+        if (target.getTeam() != null) {
+            String teamName = target.getTeam().getName();
+            return entity.getTeam() != null && entity.getTeam().getName().equals(teamName);
+        }
+
+        // 种族关系
+        return entity.getType() == target.getType();
     }
 
     private static void handleEffectSiphon(LivingEntity attacker, LivingEntity target) {
@@ -125,9 +211,7 @@ public class MPECombatHandler {
 
         if (aoeEffect == null) return;
         if (attackerData.getLong("AoeTime") == aoeTime) {
-            MorePotionEffectsMod.queueServerWork(1, () -> {
-                attackerData.remove("AoeTime");
-            });
+            MorePotionEffectsMod.queueServerWork(0, () -> attackerData.remove("AoeTime"));
             return;
         }
 
@@ -168,12 +252,112 @@ public class MPECombatHandler {
         CompoundTag data = target.getPersistentData();
         float damage = event.getOriginalDamage();
 
+        handleUnyieldingWillpower(target, event, damage);
+        handleStaticLife(target, event, data, damage);
         if (attacker != null) {
             handleAdaptation(target, attacker, event, data, damage);
             handleTrueDamage(target, attacker, event, data, damage, source);
-            handleStaticLife(target, event, data, damage);
         }
     }
+
+    private static void handleUnyieldingWillpower(LivingEntity target, LivingDamageEvent.Pre event, float damage) {
+        MobEffectInstance instance = target.getEffect(UNYIELDING_WILLPOWER);
+        double currentHealth = target.getHealth();
+
+        if (instance == null ||
+                event.getSource().is(ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.parse("more_potion_effects:static_damage")))) {
+            return;
+        }
+
+        if (damage < currentHealth) {
+            return;
+        }
+
+        Level level = target.level();
+
+        // 添加发光、黑暗、抗性、禁锢效果
+        target.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100, 0));
+        target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 100, 0));
+        target.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 60, 4));
+        target.addEffect(new MobEffectInstance(IMPRISON, 100, 0));
+
+        if (!level.isClientSide()) {
+            String baseMessage = Component.translatable("text_unyielding_willpower_message").getString();
+            String[] messages = {
+                    baseMessage + ".",
+                    baseMessage + "..",
+                    baseMessage + "...",
+            };
+
+            for (int i = 0; i < 3; i++) {
+                int finalI = i;
+                MorePotionEffectsMod.queueServerWork(finalI * 30 + 5, () -> {
+                    // 如果是玩家，显示文本
+                    if (target instanceof Player player) {
+                        player.displayClientMessage(Component.literal(messages[finalI]), true);
+                    }
+
+                    if (finalI == 2) {
+                        int effectLevel = instance.getAmplifier() + 1;
+                        double chance = evaluate(UNYIELDING_CHANCE.get(), "effectLevel", effectLevel);
+
+                        // 概率判定
+                        if (Math.random() >= chance) {
+                            target.setHealth(Math.max(0.001f, target.getHealth() - damage));
+                            target.hurt(event.getSource(), damage);
+                            return;
+                        }
+
+                        // 实体由于意外因素死亡
+                        if (!target.isAlive()) return;
+
+                        // 播放音效
+                        SoundEvent sound = SoundEvents.ENDER_DRAGON_HURT;
+                        level.playSound(null, BlockPos.containing(target.getX(), target.getY(), target.getZ()), sound, SoundSource.PLAYERS, 1.0f, 1.0f);
+
+
+                        // 计算吸收护盾值
+                        double absorption = Math.min(
+                                16 * effectLevel,
+                                effectLevel * 4 + damage * 0.25 * effectLevel
+                        );
+                        target.setAbsorptionAmount((float) absorption);
+
+                        // 设置生命值和免疫效果
+                        target.setHealth(1);
+                        if (!level.isClientSide()) {
+                            target.addEffect(new MobEffectInstance(IMMUNE, 1, 3));
+                        }
+
+                        // 更新使用次数
+                        int count = target.getPersistentData().getInt("Unyielding_Count") + 1;
+                        target.getPersistentData().putInt("Unyielding_Count", count);
+
+                        // 检查是否需要移除效果
+                        if (count >= effectLevel) {
+                            target.removeEffect(UNYIELDING_WILLPOWER);
+                            target.getPersistentData().remove("Unyielding_Count");
+                        } else {
+                            if (level instanceof ServerLevel world) {
+                                Component broadcastMessage = Component.literal("§e" + target.getDisplayName().getString() + " §6的意志使他抗拒了死亡！");
+                                world.getServer().getPlayerList().broadcastSystemMessage(broadcastMessage, false);
+                            }
+                            // 显示剩余次数
+                            if (target instanceof Player player && !player.level().isClientSide()) {
+                                int remaining = effectLevel - count;
+                                player.displayClientMessage(
+                                        Component.literal("§6你的意志最多还能支撑§c" + remaining + "§6次！"),
+                                        true
+                                );
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        event.setNewDamage(0);
+    }
+
 
     private static void handleStaticLife(LivingEntity target, LivingDamageEvent.Pre event, CompoundTag data, float damage) {
         if (!target.hasEffect(STATIC_LIFE)) return;
@@ -184,24 +368,19 @@ public class MPECombatHandler {
 
         // 向玩家显示累积的伤害信息
         if (target instanceof Player player && !player.level().isClientSide()) {
-            String message;
+            Component message;
 
             if (accumulatedDamage > 0) {
                 // 正数表示即将受到的伤害
-                if (accumulatedDamage < Float.MAX_VALUE) {
-                    String damageText = new DecimalFormat("0.0").format(accumulatedDamage);
-                    message = "§6你将在生命重新流动后受到§c" + damageText + "§6点伤害！";
-                } else {
-                    // 超出数值上限
-                    message = "§6你将在生命重新流动后受到§4∞§6点伤害！";
-                }
+                String damageText = new DecimalFormat("0.0").format(accumulatedDamage);
+                message = Component.translatable("text.static_life_be_hurt", damageText);
             } else {
                 // 负数表示即将获得的治疗
                 String healText = new DecimalFormat("0.0").format(-accumulatedDamage);
-                message = "§6你将在生命重新流动后得到§a" + healText + "§6点治疗！";
+                message = Component.translatable("text.static_life_be_treated", healText);
             }
 
-            player.displayClientMessage(Component.literal(message), true);
+            player.displayClientMessage(message, true);
         }
 
         // 完全抵消当前伤害

@@ -18,9 +18,9 @@ import org.jetbrains.annotations.NotNull;
 
 public class ImprisonMobEffect extends MobEffect {
 	// 使用常量定义ResourceLocation和修饰符名称
-	private static final ResourceLocation MOVE_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "imprison_move");
-	private static final ResourceLocation SWIM_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "imprison_swim");
-	private static final ResourceLocation FLY_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "imprison_fly");
+	private static final ResourceLocation MOVE_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "effect.imprison_move");
+	private static final ResourceLocation SWIM_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "effect.imprison_swim");
+	private static final ResourceLocation FLY_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "effect.imprison_fly");
 
 	public ImprisonMobEffect() {
 		super(MobEffectCategory.HARMFUL, -16751002);

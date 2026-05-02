@@ -16,7 +16,12 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
 
+import java.util.List;
+
 import static com.yixi_xun.more_potion_effects.MPEConfig.*;
+import static com.yixi_xun.more_potion_effects.api.ConfigHelper.evaluate;
+import static com.yixi_xun.more_potion_effects.api.EffectUtils.forceUpdateEffect;
+import static com.yixi_xun.more_potion_effects.api.EffectUtils.getRandomBadEffect;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.*;
 import static net.neoforged.neoforge.event.entity.living.MobEffectEvent.Applicable.Result.*;
 
@@ -26,6 +31,60 @@ public class EffectEvents {
     @SubscribeEvent
     public static void onAdded(MobEffectEvent.Added event) {
         handleExtensionEffect(event.getEntity(), event.getEffectInstance());
+        handleSideEffect(event.getEntity(), event.getEffectInstance());
+    }
+
+    private static void handleSideEffect(LivingEntity entity, MobEffectInstance instance) {
+        if (!instance.getEffect().value().isBeneficial()) return;
+
+        long positiveEffectsCount = entity.getActiveEffects().stream()
+                .filter(effect -> effect.getEffect().value().getCategory() == MobEffectCategory.BENEFICIAL)
+                .count();
+
+        CompoundTag data = entity.getPersistentData();
+
+        if (SIDE_EFFECT_LIMIT.get() <= 0 || data.getBoolean("isSideEffect")) {
+            return;
+        }
+
+        if (positiveEffectsCount > SIDE_EFFECT_LIMIT.get()) {
+            int sideLevel = (int) Math.round(Math.sqrt(positiveEffectsCount - SIDE_EFFECT_LIMIT.get()));
+            data.putBoolean("isSideEffect", true);
+            entity.addEffect(new MobEffectInstance(
+                    SIDE_EFFECT,
+                    -1,
+                    sideLevel
+            ));
+            data.remove("isSideEffect");
+        }
+
+        try {
+            MobEffectInstance sideEffect = entity.getEffect(SIDE_EFFECT);
+            if (sideEffect != null) {
+                int sideLevel = sideEffect.getAmplifier() + 1;
+                int newEffectLevel = instance.getAmplifier() + 1;
+                int negativeCount = (int)evaluate(NUMBER_OF_SIDE_EFFECTS.get(), "SideEffectLevel", sideLevel, "NewEffectLevel", newEffectLevel);
+
+                data.putBoolean("isSideEffect", true);
+                for (int i = 0; i < negativeCount; i++) {
+                    Holder<MobEffect> negativeEffect = getRandomBadEffect();
+                    int negativeDuration;
+                    if (negativeEffect.value().isInstantenous()) {
+                        negativeDuration = instance.getDuration() / 20;
+                    } else {
+                        negativeDuration = instance.getDuration() * sideLevel;
+                    }
+
+                    entity.addEffect(new MobEffectInstance(
+                            negativeEffect,
+                            negativeDuration,
+                            Math.max(0, newEffectLevel - 1)
+                    ));
+                }
+            }
+        } finally {
+            data.remove("isSideEffect");
+        }
     }
 
     private static void handleExtensionEffect(LivingEntity entity, MobEffectInstance newEffect) {
@@ -69,28 +128,8 @@ public class EffectEvents {
             return;
         }*/
 
-        // 免疫检查
-        var immune = entity.getEffect(IMMUNE);
-       /* if (immune != null && ImmuneMobEffect.getImmuneEffects(immune.getAmplifier()).contains(effectToApply.getEffect())) {
-            event.setResult(DO_NOT_APPLY);
-        }*/
-        if (immune != null) {
-            Holder<MobEffect> effect = effectToApply.getEffect();
-            // 获取可免疫的效果的映射关系
-            var immuneMap = ImmuneMobEffect.getImmuneMap(immune.getAmplifier());
-            if (immuneMap.containsKey(effect)) {
-                int immuneAmplifier = immuneMap.get(effect);
-                if (immuneAmplifier >= effectToApply.getAmplifier()) {
-                    event.setResult(DO_NOT_APPLY);
-                }
-            } else if (immune.getAmplifier() > immuneMap.size() + 2) {
-                event.setResult(DO_NOT_APPLY);
-            } else if (immune.getAmplifier() + 1 > immuneMap.size() && !effectToApply.getEffect().value().isBeneficial()) {
-                event.setResult(DO_NOT_APPLY);
-            } else if (immune.getAmplifier() > immuneMap.size() && effectToApply.getEffect().value().getCategory() == MobEffectCategory.HARMFUL) {
-                event.setResult(DO_NOT_APPLY);
-            }
-        }
+        handleImmune(entity, effectToApply, event);
+        handleDispel(entity, effectToApply);
 
         if (FORCE_EFFECTS.get().contains(effectId) && !BAN_LIST.get().contains(effectId)) {
             EffectUtils.forceAddEffect(entity, effectToApply, null);
@@ -102,29 +141,7 @@ public class EffectEvents {
             event.setResult(APPLY);
         }
 
-        /*if (entity.hasEffect(DISPEL.get()) &&
-                effectToApply.getEffect().getCategory() == MobEffectCategory.BENEFICIAL &&
-                !effectToApply.getEffect().equals(DISPEL.get())) {
-
-            int dispelLevel = entity.getEffect(DISPEL.get()).getAmplifier();
-            int newLevel = effectToApply.getAmplifier() - dispelLevel;
-
-            event.setResult(DO_NOT_APPLY);
-
-            if (newLevel >= 0) {
-                persistentData.putBoolean("dispelling_in_progress", true);
-                entity.addEffect(new MobEffectInstance(
-                        effectToApply.getEffect(),
-                        effectToApply.getDuration(),
-                        newLevel,
-                        effectToApply.isAmbient(),
-                        effectToApply.isVisible(),
-                        effectToApply.showIcon()
-                ));
-                persistentData.putBoolean("dispelling_in_progress", false);
-            }
-        }
-
+        /*
         if (effectToApply.getEffect() == UPGRADE.get()) {
             int upgradeLevel = effectToApply.getAmplifier();
             Set<String> exclusionSet = new HashSet<>(UPGRADE_EXCLUSION.get());
@@ -151,6 +168,55 @@ public class EffectEvents {
         // 禁用列表检查
         if (BAN_LIST.get().contains(effectId)) {
             event.setResult(DO_NOT_APPLY);
+            EffectUtils.forceRemoveEffect(entity, effectToApply.getEffect());
+        }
+    }
+
+    private static void handleImmune(LivingEntity entity, MobEffectInstance effectToApply, MobEffectEvent.Applicable event) {
+        // 免疫检查
+        var immune = entity.getEffect(IMMUNE);
+        if (immune != null) {
+            Holder<MobEffect> effect = effectToApply.getEffect();
+            // 获取可免疫的效果的映射关系
+            var immuneMap = ImmuneMobEffect.getImmuneMap(immune.getAmplifier());
+            if (immuneMap.containsKey(effect)) {
+                int immuneAmplifier = immuneMap.get(effect);
+                // 如果免疫的 amplifier >= 当前效果的 amplifier 或者 免疫的 amplifier 为 -1，则拒绝添加效果
+                if (immuneAmplifier >= effectToApply.getAmplifier() || immuneAmplifier == -1) {
+                    event.setResult(DO_NOT_APPLY);
+                }
+            } else if (immune.getAmplifier() > immuneMap.size() + 2) {
+                event.setResult(DO_NOT_APPLY);
+            } else if (immune.getAmplifier() + 1 > immuneMap.size() && !effectToApply.getEffect().value().isBeneficial()) {
+                event.setResult(DO_NOT_APPLY);
+            } else if (immune.getAmplifier() > immuneMap.size() && effectToApply.getEffect().value().getCategory() == MobEffectCategory.HARMFUL) {
+                event.setResult(DO_NOT_APPLY);
+            }
+        }
+    }
+
+    private static void handleDispel(LivingEntity entity, MobEffectInstance newEffect) {
+        if (newEffect.getEffect() == DISPEL) {
+            int dispelLevel = newEffect.getAmplifier();
+            List<MobEffectInstance> effectsToProcess = entity.getActiveEffects().stream()
+                    .filter(effect -> effect.getEffect().value().getCategory() == MobEffectCategory.BENEFICIAL)
+                    .filter(effect -> effect.getEffect() != DISPEL)
+                    .toList();
+
+            for (MobEffectInstance effect : effectsToProcess) {
+                int newLevel = effect.getAmplifier() - dispelLevel;
+                if (newLevel >= 0) {
+                    MobEffectInstance newInstance = new MobEffectInstance(
+                            effect.getEffect(),
+                            effect.getDuration(),
+                            newLevel,
+                            effect.isAmbient(),
+                            effect.isVisible(),
+                            effect.showIcon()
+                    );
+                    forceUpdateEffect(entity, effect.getEffect(), newInstance, null);
+                }
+            }
         }
     }
 

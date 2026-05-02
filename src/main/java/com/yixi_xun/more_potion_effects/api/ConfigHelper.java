@@ -84,6 +84,7 @@ public class ConfigHelper {
             "(\\d+\\.\\d+|\\d+)" +  // 数字
                     "|([a-zA-Z_][a-zA-Z0-9_]*)" +  // 标识符（变量、函数）
                     "|([+\\-*/^()])" +  // 运算符和括号
+                    "|(,)" +  // 逗号
                     "|(\\s+)"  // 空白字符
     );
 
@@ -92,7 +93,8 @@ public class ConfigHelper {
             NUMBER, VARIABLE,
             OPERATOR_ADD, OPERATOR_SUB, OPERATOR_MUL, OPERATOR_DIV, OPERATOR_POW,
             LEFT_PAREN, RIGHT_PAREN,
-            FUNCTION, OPERATOR_UNARY_MINUS
+            FUNCTION, OPERATOR_UNARY_MINUS,
+            COMMA  // 添加逗号类型
         }
     }
 
@@ -111,7 +113,8 @@ public class ConfigHelper {
             String number = matcher.group(1);
             String identifier = matcher.group(2);
             String operator = matcher.group(3);
-            // String whitespace = matcher.group(4); // 忽略空格
+            String comma = matcher.group(4);
+            // String whitespace = matcher.group(5); // 忽略空格
 
             if (number != null) {
                 tokens.add(new Token(Token.Type.NUMBER, number));
@@ -131,6 +134,8 @@ public class ConfigHelper {
                     case "/" -> tokens.add(new Token(Token.Type.OPERATOR_DIV, operator));
                     case "^" -> tokens.add(new Token(Token.Type.OPERATOR_POW, operator));
                 }
+            } else if (comma != null) {
+                tokens.add(new Token(Token.Type.COMMA, comma));
             }
             lastEnd = matcher.end();
         }
@@ -159,7 +164,8 @@ public class ConfigHelper {
                         tokens.get(i - 1).type == Token.Type.OPERATOR_SUB ||
                         tokens.get(i - 1).type == Token.Type.OPERATOR_MUL ||
                         tokens.get(i - 1).type == Token.Type.OPERATOR_DIV ||
-                        tokens.get(i - 1).type == Token.Type.OPERATOR_POW) {
+                        tokens.get(i - 1).type == Token.Type.OPERATOR_POW ||
+                        tokens.get(i - 1).type == Token.Type.COMMA) {  // 添加逗号情况
                     operatorStack.push(new Token(Token.Type.OPERATOR_UNARY_MINUS, "u-"));
                     continue;
                 }
@@ -168,6 +174,17 @@ public class ConfigHelper {
             switch (token.type) {
                 case NUMBER, VARIABLE -> output.add(token);
                 case FUNCTION, LEFT_PAREN -> operatorStack.push(token);
+                case COMMA -> {
+                    // 逗号用于函数参数分隔，在RPN中不需要保留
+                    // 弹出运算符直到遇到左括号
+                    while (!operatorStack.isEmpty() && operatorStack.peek().type != Token.Type.LEFT_PAREN) {
+                        output.add(operatorStack.pop());
+                    }
+                    if (operatorStack.isEmpty()) {
+                        throw new IllegalArgumentException("Misplaced comma in function arguments");
+                    }
+                    // 不将逗号加入输出或栈
+                }
                 case OPERATOR_ADD, OPERATOR_SUB, OPERATOR_MUL, OPERATOR_DIV, OPERATOR_POW -> {
                     while (!operatorStack.isEmpty() &&
                             (operatorStack.peek().type == Token.Type.OPERATOR_ADD ||
@@ -186,13 +203,17 @@ public class ConfigHelper {
                     operatorStack.push(token);
                 }
                 case RIGHT_PAREN -> {
+                    // 弹出运算符直到遇到左括号
                     while (!operatorStack.isEmpty() && operatorStack.peek().type != Token.Type.LEFT_PAREN) {
                         output.add(operatorStack.pop());
                     }
+
                     if (operatorStack.isEmpty()) {
                         throw new IllegalArgumentException("Mismatched parentheses");
                     }
-                    operatorStack.pop(); // 弹出左括号
+
+                    // 弹出左括号
+                    operatorStack.pop();
 
                     // 如果栈顶是函数，则弹出并加入输出
                     if (!operatorStack.isEmpty() && operatorStack.peek().type == Token.Type.FUNCTION) {
@@ -202,6 +223,7 @@ public class ConfigHelper {
             }
         }
 
+        // 弹出剩余的运算符
         while (!operatorStack.isEmpty()) {
             Token op = operatorStack.pop();
             if (op.type == Token.Type.LEFT_PAREN || op.type == Token.Type.RIGHT_PAREN) {
@@ -281,6 +303,8 @@ public class ConfigHelper {
                     };
                     valueStack.push(result);
                 }
+                // 逗号在RPN中不应出现，如果出现则说明解析错误
+                case COMMA -> throw new IllegalArgumentException("Unexpected comma in RPN expression");
             }
         }
 

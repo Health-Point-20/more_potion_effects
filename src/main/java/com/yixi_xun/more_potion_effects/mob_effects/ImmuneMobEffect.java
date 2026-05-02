@@ -5,6 +5,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
 
@@ -20,7 +21,10 @@ public class ImmuneMobEffect extends MobEffect {
 
 	public static Map<Holder<MobEffect>, Integer> getImmuneMap(int amplifier) {
 		Map<Holder<MobEffect>,Integer> immuneList = new HashMap<>();
-		for (int i = 0; i <= amplifier; i++) {
+		// 防止数组越界
+		int max = Math.min(amplifier, IMMUNE_EFFECTS.get().size());
+		for (int i = 0; i <= max; i++) {
+			// 获取免疫效果的配置列联表
 			Arrays.asList(IMMUNE_EFFECTS.get().get(i).split(",")).forEach(effectConfig -> {
 				String[] parts = effectConfig.split("-");
 				if (parts.length == 2) {
@@ -61,14 +65,15 @@ public class ImmuneMobEffect extends MobEffect {
 			}
 		}
 
-		if (amplifier > immuneMap.size() + 2) {
-			entity.getActiveEffects().stream().filter(effect -> effect.getEffect() != IMMUNE)
+		Collection<MobEffectInstance> effects = entity.getActiveEffects().stream().toList();
+		if (amplifier >= immuneMap.size() + 2) {
+			effects.stream().filter(effect -> effect.getEffect() != IMMUNE)
 					.forEach(effect -> entity.removeEffect(effect.getEffect()));
-		} else if (amplifier + 1 > immuneMap.size()) {
-			entity.getActiveEffects().stream().filter(effect -> !effect.getEffect().value().isBeneficial())
+		} else if (amplifier >= immuneMap.size() + 1) {
+			effects.stream().filter(effect -> !effect.getEffect().value().isBeneficial())
 					.forEach(effect -> entity.removeEffect(effect.getEffect()));
-		} else if (amplifier > immuneMap.size()) {
-			entity.getActiveEffects().stream().filter(effect -> effect.getEffect().value().getCategory() == MobEffectCategory.HARMFUL)
+		} else if (amplifier >= immuneMap.size()) {
+			effects.stream().filter(effect -> effect.getEffect().value().getCategory() == MobEffectCategory.HARMFUL)
 					.forEach(effect -> entity.removeEffect(effect.getEffect()));
 		}
 	}

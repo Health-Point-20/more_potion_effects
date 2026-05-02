@@ -31,4 +31,10 @@ public class MorePotionEffectsModMobEffects {
 	public static final DeferredHolder<MobEffect, MobEffect> AGGRO = REGISTRY.register("aggro", AggroMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> DECAY = REGISTRY.register("decay", DecayMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> EXTENSION = REGISTRY.register("extension", ExtensionMobEffect::new);
-	}
+	public static final DeferredHolder<MobEffect, MobEffect> SHATTERED_HEART = REGISTRY.register("shattered_heart", ShatteredHeartMobEffect::new);
+	public static final DeferredHolder<MobEffect, MobEffect> INJURY_LINK = REGISTRY.register("injury_link", InjuryLinkMobEffect::new);
+	public static final DeferredHolder<MobEffect, MobEffect> SIDE_EFFECT = REGISTRY.register("side_effect", SideEffectMobEffect::new);
+	public static final DeferredHolder<MobEffect, MobEffect> UNYIELDING_WILLPOWER = REGISTRY.register("unyielding_willpower", UnyieldingWillpowerMobEffect::new);
+	public static final DeferredHolder<MobEffect, MobEffect> STASIS_FIELD = REGISTRY.register("stasis_field", StasisFieldMobEffect::new);
+	public static final DeferredHolder<MobEffect, MobEffect> DISPEL = REGISTRY.register("dispel", DispelMobEffect::new);
+}
