@@ -3,6 +3,7 @@
   "package": "com.yixi_xun.more_potion_effects.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AbstractArrowAccessor",
     "LivingEntityMixin"
   ],
   "injectors": {

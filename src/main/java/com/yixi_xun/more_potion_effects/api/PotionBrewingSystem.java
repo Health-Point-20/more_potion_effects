@@ -179,7 +179,8 @@ public class PotionBrewingSystem {
 
     private static void registerRecipe(BrewingRecipe recipe) {
         List<MobEffectInstance> effectInstances = new ArrayList<>();
-        for (EffectConfig effectConfig : recipe.effects) {
+        if (recipe.effects != null) {
+            for (EffectConfig effectConfig : recipe.effects) {
             // 使用 BuiltInRegistries 获取 MobEffect 的 Holder
             Optional<Holder.Reference<MobEffect>> effectHolderOpt = BuiltInRegistries.MOB_EFFECT.getHolder(effectConfig.getEffectId());
             if (effectHolderOpt.isEmpty()) {
@@ -195,8 +196,8 @@ public class PotionBrewingSystem {
                     effectConfig.visible,
                     effectConfig.showIcon
             ));
+            }
         }
-
 
         ItemStack outputStack = new ItemStack(Items.POTION);
 
@@ -222,8 +223,7 @@ public class PotionBrewingSystem {
 
         // 处理自定义基底
         recipe.getCustomBase().ifPresent(base -> {
-            CustomData customData = outputStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-            CompoundTag tag = customData.copyTag();
+            CompoundTag tag = new CompoundTag();
             tag.putString("BasePotion", base);
             outputStack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         });
@@ -238,18 +238,20 @@ public class PotionBrewingSystem {
 
         // 注册配方
         Potion basePotion = recipe.getBasePotion();
-        if (basePotion == null) {
-            MorePotionEffectsMod.LOGGER.error("Failed to register recipe: base potion is null");
-            return;
-        }
         Item ingredientItem = recipe.getIngredientItem();
         if (ingredientItem == null) {
             MorePotionEffectsMod.LOGGER.error("Failed to register recipe: ingredient item is null");
             return;
         }
 
+        // 获取用于配方匹配的Potion（原版药水配方需要有效的Potion，自定义基底配方使用null）
+        Potion recipePotion = recipe.isCustomBaseRecipe() ? null : basePotion;
+        if (recipe.isCustomBaseRecipe() && basePotion != null) {
+            MorePotionEffectsMod.LOGGER.warn("Custom base recipe '{}' has a valid vanilla potion '{}', ignoring vanilla potion", recipe.base_potion, basePotion);
+        }
+
         IngredientBrewingRecipe brewingRecipe = new IngredientBrewingRecipe(
-                basePotion,
+                recipePotion,
                 recipe.getBasePotionId(),
                 Ingredient.of(ingredientItem),
                 outputStack
@@ -286,6 +288,11 @@ public class PotionBrewingSystem {
             return Optional.ofNullable(custom_color);
         }
 
+        // 检查是否是自定义基底配方
+        public boolean isCustomBaseRecipe() {
+            return base_potion != null && getBasePotion() == null;
+        }
+
         // 获取 Potion
         public Potion getBasePotion() {
             return base_potion != null ?
@@ -305,11 +312,15 @@ public class PotionBrewingSystem {
         }
 
         public boolean isValid() {
-            return base_potion != null &&
-                    ingredient != null &&
-                    effects != null &&
-                    !effects.isEmpty() &&
-                    getIngredientItem() != null;
+            if (base_potion == null || ingredient == null || getIngredientItem() == null) {
+                return false;
+            }
+            // 原版药水配方需要有效的base_potion
+            if (!isCustomBaseRecipe() && getBasePotion() == null) {
+                return false;
+            }
+            // 自定义基底配方需要有效的custom_base
+            return !isCustomBaseRecipe() || (custom_base != null && !custom_base.isEmpty());
         }
 
         @Override
@@ -329,7 +340,10 @@ public class PotionBrewingSystem {
             // 使用新的 DataComponent 系统检查
             if (input.getItem() != Items.POTION) return false;
             PotionContents contents = input.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
-            return contents != PotionContents.EMPTY && !contents.customEffects().isEmpty();
+            // 检查是否有自定义效果或自定义基底标记
+            boolean hasCustomEffects = contents != PotionContents.EMPTY && !contents.customEffects().isEmpty();
+            boolean hasCustomBase = input.get(DataComponents.CUSTOM_DATA) != null;
+            return hasCustomEffects || hasCustomBase;
         }
 
         @Override
@@ -366,7 +380,10 @@ public class PotionBrewingSystem {
         public boolean isInput(ItemStack input) {
             if (input.getItem() != Items.SPLASH_POTION) return false;
             PotionContents contents = input.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
-            return contents != PotionContents.EMPTY && !contents.customEffects().isEmpty();
+            // 检查是否有自定义效果或自定义基底标记
+            boolean hasCustomEffects = contents != PotionContents.EMPTY && !contents.customEffects().isEmpty();
+            boolean hasCustomBase = input.get(DataComponents.CUSTOM_DATA) != null;
+            return hasCustomEffects || hasCustomBase;
         }
 
         @Override
@@ -386,7 +403,7 @@ public class PotionBrewingSystem {
     public static ItemStack dragonBreathConversion(ItemStack potion) {
         ItemStack result = new ItemStack(Items.LINGERING_POTION);
         // 复制 PotionContents
-        PotionContents contentsToCopy = potion.get(DataComponents.POTION_CONTENTS);
+        PotionContents contentsToCopy = potion.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
         if (contentsToCopy != PotionContents.EMPTY) {
             result.set(DataComponents.POTION_CONTENTS, contentsToCopy);
         }
@@ -480,8 +497,8 @@ public class PotionBrewingSystem {
             }
 
             // 检查原版药水类型
-            PotionContents contents = stack.get(DataComponents.POTION_CONTENTS);
-            if (contents != null) {
+            PotionContents contents = stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
+            if (contents != PotionContents.EMPTY) {
                 return contents.potion().map(Holder::value).orElse(null) == basePotion;
             }
 

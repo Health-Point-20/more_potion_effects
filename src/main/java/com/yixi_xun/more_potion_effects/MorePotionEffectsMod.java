@@ -45,6 +45,8 @@ public class MorePotionEffectsMod {
         MorePotionEffectsModMobEffects.REGISTRY.register(modEventBus);
         //注册创造物品栏
         MorePotionEffectsModTabs.REGISTRY.register(modEventBus);
+        //注册实体
+        MorePotionEffectsModEntities.REGISTRY.register(modEventBus);
 
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, MPEConfig.SPEC);

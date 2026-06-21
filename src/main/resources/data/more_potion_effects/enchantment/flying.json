@@ -1,0 +1,21 @@
+{
+  "description": {
+    "translate": "enchantment.more_potion_effects.flying",
+    "fallback": "Flying"
+  },
+  "supported_items": "#minecraft:enchantable/chest_armor",
+  "primary_items": "#minecraft:enchantable/chest_armor",
+  "weight": 10,
+  "max_level": 3,
+  "min_cost": {
+    "base": 1,
+    "per_level_above_first": 11
+  },
+  "max_cost": {
+    "base": 12,
+    "per_level_above_first": 11
+  },
+  "anvil_cost": 2,
+  "slots": ["chest"],
+  "tradeable": false
+}

@@ -1,0 +1,20 @@
+{
+  "description": {
+    "translate": "enchantment.more_potion_effects.inhibit_therapy",
+    "fallback": "Inhibit Therapy"
+  },
+  "exclusive_set": "#more_potion_effects:exclusive_set_inhibit_therapy",
+  "supported_items": "#minecraft:enchantable/weapon",
+  "weight": 5,
+  "max_level": 5,
+  "min_cost": {
+    "base": 1,
+    "per_level_above_first": 11
+  },
+  "max_cost": {
+    "base": 12,
+    "per_level_above_first": 11
+  },
+  "anvil_cost": 2,
+  "slots": ["mainhand"]
+}

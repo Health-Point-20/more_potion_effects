@@ -1,5 +1,8 @@
 package com.yixi_xun.more_potion_effects.event;
 
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
@@ -8,17 +11,17 @@ import net.neoforged.neoforge.event.entity.EntityTravelToDimensionEvent;
 import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import net.neoforged.neoforge.event.entity.living.*;
-import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.GameShuttingDownEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import static com.yixi_xun.more_potion_effects.event.handler.MPECombatHandler.*;
+import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.*;
+import static com.yixi_xun.more_potion_effects.event.handler.MPEEnchantmentHandler.*;
+import static com.yixi_xun.more_potion_effects.event.handler.MPEPlayerHandler.*;
+import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.PIERCE;
 
 @EventBusSubscriber
 public class MPEEvent {
-
-    // 这些方法将在后续版本中逐步实现
 
     @SubscribeEvent
     public static void onHeal(LivingHealEvent event) {
@@ -28,6 +31,9 @@ public class MPEEvent {
     @SubscribeEvent
     public static void onEntityAttacked(LivingIncomingDamageEvent event) {
         onAttackHandler(event);
+        if (!event.isCanceled()) {
+            onHurtHandler(event);
+        }
     }
 
     @SubscribeEvent
@@ -37,71 +43,113 @@ public class MPEEvent {
 
     @SubscribeEvent
     public static void onEntityDeath(LivingDeathEvent event) {
-        onLivingDeathHandler(event);
-    }
-
-
-
-    // 核心事件处理方法保留
-    
-    @SubscribeEvent
-    public static void onItemToolTip(ItemTooltipEvent event) {
-        // 物品提示处理逻辑 - 待实现
+        com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onLivingDeathHandler(event);
+        com.yixi_xun.more_potion_effects.event.handler.MPECombatHandler.onLivingDeathHandler(event);
     }
 
     @SubscribeEvent
-    public static void onLivingSetAttackTarget(LivingChangeTargetEvent event) {
-        // 攻击目标变更处理逻辑 - 待实现
+    public static void onLivingUseItemTick(LivingEntityUseItemEvent.Tick event) {
+        onPlayerUseItemTickHandler(event);
     }
 
     @SubscribeEvent
     public static void onEntityJoinWorld(EntityJoinLevelEvent event) {
-        // 实体加入世界处理逻辑 - 待实现
-    }
-
-    @SubscribeEvent
-    public static void onGameStopping(GameShuttingDownEvent event) {
-        // 游戏关闭处理逻辑 - 待实现
+        onEntityJoinWorldHandler(event);
     }
 
     @SubscribeEvent
     public static void onItemToss(ItemTossEvent event) {
-        // 物品投掷处理逻辑 - 待实现
-    }
-
-    @SubscribeEvent
-    public static void onServerTick(ServerTickEvent.Post event) {
-        // 服务器刻处理逻辑 - 待实现
+        onItemTossHandler(event);
     }
 
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        // 玩家登出处理逻辑 - 待实现
-    }
-
-    @SubscribeEvent
-    public static void onProjectileImpact(ProjectileImpactEvent event) {
-        // 投射物撞击处理逻辑 - 待实现
+        onPlayerLoggedOutHandler(event);
     }
 
     @SubscribeEvent
     public static void onEntityJump(LivingEvent.LivingJumpEvent event) {
-        // 实体跳跃处理逻辑 - 待实现
+        onEntityJumpHandler(event);
+    }
+
+    @SubscribeEvent
+    public static void onLivingSetAttackTarget(LivingChangeTargetEvent event) {
+        onLivingSetAttackTargetHandler(event);
     }
 
     @SubscribeEvent
     public static void onLivingEating(LivingEntityUseItemEvent.Finish event) {
-        // 生物进食处理逻辑 - 待实现
+        onLivingEatingHandler(event);
     }
 
     @SubscribeEvent
     public static void onEntityTeleport(EntityTeleportEvent event) {
-        // 实体传送处理逻辑 - 待实现
+        onEntityTeleportHandler(event);
     }
 
     @SubscribeEvent
     public static void onEntityTravelToDimension(EntityTravelToDimensionEvent event) {
-        // 实体跨维度旅行处理逻辑 - 待实现
+        onEntityTravelToDimensionHandler(event);
     }
 
+    @SubscribeEvent
+    public static void onBreakSpeed(PlayerEvent.BreakSpeed event) {
+        onBreakHandler(event);
+    }
+
+    @SubscribeEvent
+    public static void onHarvestCheck(PlayerEvent.HarvestCheck event) {
+        onHarvestCheckHandler(event);
+    }
+
+    @SubscribeEvent
+    public static void onProjectileImpact(ProjectileImpactEvent event) {
+        // 穿透效果
+        if (event.getRayTraceResult() instanceof net.minecraft.world.phys.EntityHitResult hitResult
+                && event.getProjectile() instanceof net.minecraft.world.entity.projectile.AbstractArrow arrow
+                && hitResult.getEntity() instanceof LivingEntity
+                && arrow.getOwner() instanceof LivingEntity shooter) {
+            MobEffectInstance pierceEffect = shooter.getEffect(PIERCE);
+            if (pierceEffect != null) {
+                CompoundTag data = arrow.getPersistentData();
+                if (!data.contains("extra_pierce")) {
+                    data.putBoolean("extra_pierce", true);
+                    ((com.yixi_xun.more_potion_effects.mixin.AbstractArrowAccessor) arrow)
+                            .setPierceLevel((byte) (arrow.getPierceLevel() + pierceEffect.getAmplifier() + 1));
+                }
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onServerTick(ServerTickEvent.Post event) {
+        // 服务器刻处理
+    }
+
+    // ==================== 附魔事件 ====================
+
+    @SubscribeEvent
+    public static void onEquipmentChangeEvent(LivingEquipmentChangeEvent event) {
+        onEquipmentChange(event);
+    }
+
+    @SubscribeEvent
+    public static void onEnchantmentHurt(LivingIncomingDamageEvent event) {
+        onLivingHurt(event);
+    }
+
+    @SubscribeEvent
+    public static void onEnchantmentDamageEvent(LivingDamageEvent.Pre event) {
+        onLivingDamage(event);
+    }
+
+    @SubscribeEvent
+    public static void onEnchantmentDeathEvent(LivingDeathEvent event) {
+        onLivingDeath(event);
+    }
+
+    @SubscribeEvent
+    public static void onEnchantmentEffectRemove(MobEffectEvent.Remove event) {
+        onEffectRemove(event);
+    }
 }

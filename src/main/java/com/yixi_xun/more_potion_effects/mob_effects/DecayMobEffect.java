@@ -7,70 +7,72 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.*;
+import org.jetbrains.annotations.NotNull;
 
 public class DecayMobEffect extends MobEffect implements IMobEffectRemovable {
-	private static final ResourceLocation DECAY_HEALTH_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects","effect.decay");
-	private static final double TICK_THRESHOLD = 20.0;
-	private static final double MIN_HEALTH = 0.01;
 
-	public DecayMobEffect() {
-		super(MobEffectCategory.HARMFUL, -13421773);
-	}
+    private static final ResourceLocation HEALTH_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "decay_health");
 
-	@Override
-	public boolean applyEffectTick(LivingEntity entity, int amplifier) {
-		var persistentData = entity.getPersistentData();
+    public DecayMobEffect() {
+        super(MobEffectCategory.HARMFUL, -13421773);
+    }
 
-        double currentTime = persistentData.getDouble("decay_time");
-		persistentData.putDouble("decay_time", currentTime + 1);
+    @Override
+    public boolean applyEffectTick(@NotNull LivingEntity entity, int amplifier) {
+        if (entity.level().isClientSide()) return true;
 
-		if (entity.level() instanceof ServerLevel level) {
-			level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, entity.getX(), entity.getY(), entity.getZ(), 1, 0.1, 0.1, 0.1, 0.1);
-		}
+        // 累积计时
+        entity.getPersistentData().putDouble("decay_time", entity.getPersistentData().getDouble("decay_time") + 1);
 
-		AttributeInstance maxHealth = entity.getAttribute(Attributes.MAX_HEALTH);
-		if (currentTime >= TICK_THRESHOLD && maxHealth != null) {
-			double currentMaxHealth = maxHealth.getValue();
-			double decayAmount = Math.pow(2, amplifier);
+        // 发送粒子效果
+        if (entity.level() instanceof ServerLevel level) {
+            level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, entity.getX(), entity.getY(), entity.getZ(), 1, 0.1, 0.1, 0.1, 0.1);
+        }
 
-			double newDecayHealth;
-			if (currentMaxHealth - decayAmount > 0) {
-				newDecayHealth = persistentData.getDouble("decay_health") + decayAmount;
-			} else {
-				newDecayHealth = persistentData.getDouble("decay_health") + maxHealth.getBaseValue() - MIN_HEALTH;
-			}
+        // 每20tick处理一次
+        if (entity.getPersistentData().getDouble("decay_time") >= 20) {
+            int level = amplifier + 1;
+            double decayHealth = entity.getPersistentData().getDouble("decay_health");
+            double currentMaxHealth = entity.getAttributeValue(Attributes.MAX_HEALTH);
 
-			persistentData.putDouble("decay_health", newDecayHealth);
+            if (currentMaxHealth - Math.pow(2, amplifier) > 0) {
+                decayHealth += Math.pow(2, amplifier);
+            } else {
+                decayHealth += currentMaxHealth - 0.01;
+            }
 
-			maxHealth.removeModifier(DECAY_HEALTH_MODIFIER_ID);
-			maxHealth.addTransientModifier(new AttributeModifier(DECAY_HEALTH_MODIFIER_ID, -newDecayHealth, AttributeModifier.Operation.ADD_VALUE));
+            entity.getPersistentData().putDouble("decay_health", decayHealth);
 
-			float maxHealthValue = (float) maxHealth.getValue();
-			if (entity.getHealth() > maxHealthValue) {
-				entity.setHealth(maxHealthValue);
-			}
+            // 更新最大生命值属性 - 使用ResourceLocation方式
+            entity.getAttribute(Attributes.MAX_HEALTH).removeModifier(HEALTH_MODIFIER_ID);
+            entity.getAttribute(Attributes.MAX_HEALTH).addTransientModifier(
+                    new AttributeModifier(HEALTH_MODIFIER_ID, -decayHealth, AttributeModifier.Operation.ADD_VALUE));
 
-			persistentData.putDouble("decay_health", 0);
-		}
+            // 如果当前生命值超过最大生命值，调整生命值
+            if (entity.getHealth() > entity.getAttributeValue(Attributes.MAX_HEALTH)) {
+                entity.setHealth((float) entity.getAttributeValue(Attributes.MAX_HEALTH));
+            }
 
-		return true;
-	}
+            entity.getPersistentData().putDouble("decay_time", 0);
+        }
 
-	@Override
-	public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) {
-		return true;
-	}
+        return true;
+    }
 
-	@Override
-	public void onEffectRemoved(LivingEntity entity, MobEffectInstance instance) {
-		if (entity == null)
-			return;
-		AttributeInstance maxHealth = entity.getAttribute(Attributes.MAX_HEALTH);
-		if (maxHealth == null) return;
-		maxHealth.removeModifier(DECAY_HEALTH_MODIFIER_ID);
-		entity.getPersistentData().remove("decay_health");
+    @Override
+    public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) {
+        return true;
+    }
 
-	}
+    @Override
+    public void onEffectRemoved(@NotNull LivingEntity entity, MobEffectInstance instance) {
+        // 移除属性修改器
+        entity.getAttribute(Attributes.MAX_HEALTH).removeModifier(HEALTH_MODIFIER_ID);
+        // 重置持久化数据
+        entity.getPersistentData().putDouble("decay_health", 0);
+        entity.getPersistentData().putDouble("decay_time", 0);
+    }
 }

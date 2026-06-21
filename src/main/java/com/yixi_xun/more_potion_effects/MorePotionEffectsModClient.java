@@ -1,6 +1,5 @@
 package com.yixi_xun.more_potion_effects;
 
-import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -24,8 +23,5 @@ public class MorePotionEffectsModClient {
 
     @SubscribeEvent
     static void onClientSetup(FMLClientSetupEvent event) {
-        // Some client setup code
-        MorePotionEffectsMod.LOGGER.info("HELLO FROM CLIENT SETUP");
-        MorePotionEffectsMod.LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
     }
 }

@@ -171,7 +171,7 @@ public class EffectUtils {
                         duration,
                         amplifierLevel,
                         true,
-                        false  // 不显示图标
+                        true  // 显示图标
                 ));
             }
         }
