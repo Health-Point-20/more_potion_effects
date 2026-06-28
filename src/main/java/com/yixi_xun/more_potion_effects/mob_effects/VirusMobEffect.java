@@ -11,7 +11,6 @@ import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -101,8 +100,8 @@ public class VirusMobEffect extends MobEffect implements IMobEffectRemovable {
 			// 感染速度受等级、阻挡系数、距离系数共同影响
 			double infectionSpeed = BASE_INFECTION_SPEED * level * blockFactor * distanceFactor;
 
-			int targetAmplifier = target.hasEffect(VIRUS) ?
-					target.getEffect(VIRUS).getAmplifier() : -1;
+			MobEffectInstance virusEffect = target.getEffect(VIRUS);
+			int targetAmplifier = virusEffect != null ? virusEffect.getAmplifier() : -1;
 
 			// 只有目标等级低于源等级时才能感染
 			if (targetAmplifier < amplifier) {
@@ -175,6 +174,7 @@ public class VirusMobEffect extends MobEffect implements IMobEffectRemovable {
 	 * 细化方块不透明度，返回 0～1 之间的值，表示阻挡传播的强度。
 	 * 数值越高，阻挡越强。
 	 */
+	@SuppressWarnings("deprecation")
 	private double getRefinedBlockOpacity(BlockState state, Level world, BlockPos pos) {
 		// 树叶、蜘蛛网等疏松但遮挡视线
 		if (state.is(BlockTags.LEAVES) || state.getBlock() == Blocks.COBWEB) {

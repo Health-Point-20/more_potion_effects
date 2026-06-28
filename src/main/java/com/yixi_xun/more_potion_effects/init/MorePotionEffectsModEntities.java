@@ -4,12 +4,9 @@ import com.yixi_xun.more_potion_effects.MorePotionEffectsMod;
 import com.yixi_xun.more_potion_effects.entity.HomingArrowEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.DeferredHolder;
-
-import java.util.function.Supplier;
 
 public class MorePotionEffectsModEntities {
     public static final DeferredRegister<EntityType<?>> REGISTRY = DeferredRegister.create(BuiltInRegistries.ENTITY_TYPE, MorePotionEffectsMod.MOD_ID);

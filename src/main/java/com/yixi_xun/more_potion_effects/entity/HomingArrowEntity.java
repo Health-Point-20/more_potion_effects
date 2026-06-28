@@ -41,16 +41,8 @@ public class HomingArrowEntity extends Arrow implements ItemSupplier {
         this.SEEK_FACTOR = 0.1 + 0.025 * homingLevel;
     }
 
-    public void setSeekFactor(double factor) {
-        SEEK_FACTOR = factor;
-    }
-
-    public double getSeekFactor() {
-        return SEEK_FACTOR;
-    }
-
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+    protected void defineSynchedData(@NotNull SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(TARGET_ID, -1);
     }
@@ -192,7 +184,5 @@ public class HomingArrowEntity extends Arrow implements ItemSupplier {
                 }
             }
         }
-
-        super.tick();
     }
 }

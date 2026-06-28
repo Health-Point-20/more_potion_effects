@@ -16,8 +16,6 @@ import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
-import java.util.Map;
-
 import static com.yixi_xun.more_potion_effects.api.ConfigHelper.evaluate;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.*;
 import static com.yixi_xun.more_potion_effects.MPEConfig.GLUTTONY_SPEED_MULTIPLIER;
@@ -94,7 +92,6 @@ public class MPEPlayerHandler {
 
         if (enhanceDigging != null) {
             Item tool = player.getMainHandItem().getItem();
-            int level = enhanceDigging.getAmplifier() + 1;
             
             if (isRightTool(state, tool)) {
                 event.setCanHarvest(true);
@@ -153,7 +150,6 @@ public class MPEPlayerHandler {
                 int foodNutrition = foodProperties.nutrition();
                 float foodSaturationModifier = foodProperties.saturation();
 
-                Map<String, Number> vars = Map.of();
                 float modified = (float) evaluate(FEAST_FOOD_ENHANCED.get(), "effectLevel", level);
                 int enhancedNutrition = (int) (foodNutrition * modified);
                 float enhancedSaturation = foodSaturationModifier * modified;

@@ -1,9 +1,7 @@
 package com.yixi_xun.more_potion_effects.init;
 
 import com.yixi_xun.more_potion_effects.MorePotionEffectsMod;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.enchantment.Enchantment;
 
 public class MorePotionEffectsModEnchantments {
     public static final ResourceLocation SOURCE_OF_BLESSING = ResourceLocation.fromNamespaceAndPath(MorePotionEffectsMod.MOD_ID, "source_of_blessing");
@@ -19,12 +17,10 @@ public class MorePotionEffectsModEnchantments {
     public static final ResourceLocation INHIBIT_THERAPY = ResourceLocation.fromNamespaceAndPath(MorePotionEffectsMod.MOD_ID, "inhibit_therapy");
 
     public static int getEnchantmentLevel(net.minecraft.world.item.ItemStack stack, ResourceLocation id) {
-        var holder = stack.getEnchantments().keySet().stream()
+        return stack.getTagEnchantments().keySet().stream()
                 .filter(h -> h.is(id))
-                .findFirst();
-        if (holder.isPresent()) {
-            return stack.getEnchantments().getLevel(holder.get());
-        }
-        return 0;
+                .findFirst()
+                .map(h -> stack.getTagEnchantments().getLevel(h))
+                .orElse(0);
     }
 }

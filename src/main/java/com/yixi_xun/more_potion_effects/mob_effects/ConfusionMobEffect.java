@@ -8,8 +8,6 @@ import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffect;
 import org.jetbrains.annotations.NotNull;
 
-import static com.yixi_xun.more_potion_effects.MPEConfig.*;
-
 public class ConfusionMobEffect extends MobEffect {
     // 常量配置
     private static final double BASE_RESISTANCE = 0.2;

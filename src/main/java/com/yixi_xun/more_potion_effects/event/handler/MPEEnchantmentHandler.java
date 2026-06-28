@@ -69,7 +69,6 @@ public class MPEEnchantmentHandler {
     // ==================== Effect Removal Protection (Flying, Vibrant) ====================
 
     public static void onEffectRemove(MobEffectEvent.Remove event) {
-        if (event.getEffect() == null) return;
         LivingEntity entity = event.getEntity();
 
         if (event.getEffect() == FLIGHT.get()) {
@@ -100,17 +99,17 @@ public class MPEEnchantmentHandler {
 
         ItemStack weapon = attacker.getMainHandItem();
 
-        handleEliminationEffect(attacker, target, weapon);
-        handleHighlyToxicBlade(attacker, target, weapon);
-        handleInflictionCorrosion(attacker, target, weapon);
-        handleInhibitTherapy(attacker, target, weapon);
+        handleEliminationEffect(target, weapon);
+        handleHighlyToxicBlade(target, weapon);
+        handleInflictionCorrosion(target, weapon);
+        handleInhibitTherapy(target, weapon);
         handlePotionPunisher(attacker, target, weapon, event);
         handleSourceOfBlessing(attacker, weapon);
         handleSourceOfCurses(attacker, target, weapon);
         handleSunderArmor(attacker, target, weapon);
     }
 
-    private static void handleEliminationEffect(LivingEntity attacker, LivingEntity target, ItemStack weapon) {
+    private static void handleEliminationEffect(LivingEntity target, ItemStack weapon) {
         int level = MorePotionEffectsModEnchantments.getEnchantmentLevel(weapon, MorePotionEffectsModEnchantments.ELIMINATION_EFFECT);
         if (level <= 0) return;
         if (target.hasEffect(LOCK)) return;
@@ -125,49 +124,52 @@ public class MPEEnchantmentHandler {
                 .ifPresent(e -> target.removeEffect(e.getEffect()));
     }
 
-    private static void handleHighlyToxicBlade(LivingEntity attacker, LivingEntity target, ItemStack weapon) {
+    private static void handleHighlyToxicBlade(LivingEntity target, ItemStack weapon) {
         int level = MorePotionEffectsModEnchantments.getEnchantmentLevel(weapon, MorePotionEffectsModEnchantments.HIGHLY_TOXIC_BLADE);
         if (level <= 0) return;
 
         double probability = evaluate(ADMINISTER_POISON_PROBABILITY.get(), "EnchantLevel", level);
         if (Math.random() >= probability) return;
 
-        int existingLevel = target.hasEffect(HIGHLY_TOXIC) ? target.getEffect(HIGHLY_TOXIC).getAmplifier() + 1 : 0;
+        MobEffectInstance effect = target.getEffect(HIGHLY_TOXIC);
+        int existingLevel = effect != null ? effect.getAmplifier() + 1 : 0;
         int newLevel = Math.min(existingLevel + 1, level);
         if (newLevel > 0) {
             target.addEffect(new MobEffectInstance(HIGHLY_TOXIC, 40 * level, newLevel - 1));
         }
     }
 
-    private static void handleInflictionCorrosion(LivingEntity attacker, LivingEntity target, ItemStack weapon) {
+    private static void handleInflictionCorrosion(LivingEntity target, ItemStack weapon) {
         int level = MorePotionEffectsModEnchantments.getEnchantmentLevel(weapon, MorePotionEffectsModEnchantments.INFLICTION_CORROSION);
         if (level <= 0) return;
 
         double probability = evaluate(INFLICTION_CORROSION_PROBABILITY.get(), "EnchantLevel", level);
         if (Math.random() >= probability) return;
 
-        int existingLevel = target.hasEffect(CORROSION) ? target.getEffect(CORROSION).getAmplifier() + 1 : 0;
+        MobEffectInstance effect = target.getEffect(CORROSION);
+        int existingLevel = effect != null ? effect.getAmplifier() + 1 : 0;
         int newLevel = Math.min(existingLevel + 1, level);
         if (newLevel > 0) {
             target.addEffect(new MobEffectInstance(CORROSION, 100 * level, newLevel - 1));
         }
     }
 
-    private static void handleInhibitTherapy(LivingEntity attacker, LivingEntity target, ItemStack weapon) {
+    private static void handleInhibitTherapy(LivingEntity target, ItemStack weapon) {
         int level = MorePotionEffectsModEnchantments.getEnchantmentLevel(weapon, MorePotionEffectsModEnchantments.INHIBIT_THERAPY);
         if (level <= 0) return;
 
         double probability = evaluate(INHIBIT_THERAPY_PROBABILITY.get(), "EnchantLevel", level);
         if (Math.random() >= probability) return;
 
-        int existingLevel = target.hasEffect(WEAKENING_RECOVERY) ? target.getEffect(WEAKENING_RECOVERY).getAmplifier() + 1 : 0;
+        MobEffectInstance effect = target.getEffect(WEAKENING_RECOVERY);
+        int existingLevel = effect != null ? effect.getAmplifier() + 1 : 0;
         int newLevel = Math.min(existingLevel + 1, level);
         if (newLevel > 0) {
             target.addEffect(new MobEffectInstance(WEAKENING_RECOVERY, 100 * level, newLevel - 1));
         }
     }
 
-    private static void handlePotionPunisher(LivingEntity attacker, LivingEntity target, ItemStack weapon, LivingIncomingDamageEvent event) {
+    private static void handlePotionPunisher(@SuppressWarnings("unused") LivingEntity attacker, LivingEntity target, ItemStack weapon, LivingIncomingDamageEvent event) {
         int level = MorePotionEffectsModEnchantments.getEnchantmentLevel(weapon, MorePotionEffectsModEnchantments.POTION_PUNISHER);
         if (level <= 0) return;
 
@@ -194,7 +196,7 @@ public class MPEEnchantmentHandler {
         attacker.addEffect(new MobEffectInstance(randomEffect, duration, randomLevel));
     }
 
-    private static void handleSourceOfCurses(LivingEntity attacker, LivingEntity target, ItemStack weapon) {
+    private static void handleSourceOfCurses(@SuppressWarnings("unused") LivingEntity attacker, LivingEntity target, ItemStack weapon) {
         if (!SOURCE_OF_CURSES.get()) return;
         int level = MorePotionEffectsModEnchantments.getEnchantmentLevel(weapon, MorePotionEffectsModEnchantments.SOURCE_OF_CURSES);
         if (level <= 0) return;
@@ -215,7 +217,8 @@ public class MPEEnchantmentHandler {
         double probability = evaluate(SUNDER_ARMOR_PROBABILITY.get(), "EnchantLevel", level);
         if (Math.random() >= probability) return;
 
-        int existingLevel = target.hasEffect(ARMOR_BROKEN) ? target.getEffect(ARMOR_BROKEN).getAmplifier() + 1 : 0;
+        MobEffectInstance effect = target.getEffect(ARMOR_BROKEN);
+        int existingLevel = effect != null ? effect.getAmplifier() + 1 : 0;
         int newLevel = Math.min(existingLevel + 1, level);
         if (newLevel > 0) {
             target.addEffect(new MobEffectInstance(ARMOR_BROKEN, 80 * level, newLevel - 1));

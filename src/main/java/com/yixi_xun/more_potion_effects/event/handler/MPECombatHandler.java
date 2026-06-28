@@ -106,7 +106,6 @@ public class MPECombatHandler {
             double distance = attacker.distanceTo(target);
             if (distance <= evaluate(MELEE_DOMAIN_DISTANCE.get(), "damage", event.getAmount(), "effectLevel", effectLevel)) {
                 event.setCanceled(true);
-                return;
             }
         }
     }
@@ -123,7 +122,7 @@ public class MPECombatHandler {
         LivingEntity target = event.getEntity();
         float damage = event.getAmount();
 
-        if (attacker == null || target == null) return;
+        if (attacker == null) return;
 
         // 潜匿 - 攻击时建立关系
         VeiledPresenceMobEffect.onAttack(attacker, target);
@@ -783,7 +782,7 @@ public class MPECombatHandler {
         MobEffectInstance lifeDebt = entity.getEffect(LIFE_DEBT);
         if (lifeDebt != null) {
             DamageSource source = event.getSource();
-            LivingEntity killer = source.getEntity() instanceof LivingEntity ? (LivingEntity) source.getEntity() : null;
+            LivingEntity killer = source.getEntity() instanceof LivingEntity living ? living : null;
             if (killer != null && killer != entity) {
                 int level = lifeDebt.getAmplifier() + 1;
                 float debtDamage = entity.getMaxHealth() * level * 0.5f + killer.getHealth() * Math.min(0.1f * level, 0.95f) + level;

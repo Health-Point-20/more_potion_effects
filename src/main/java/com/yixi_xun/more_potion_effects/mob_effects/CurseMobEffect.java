@@ -1,7 +1,6 @@
 package com.yixi_xun.more_potion_effects.mob_effects;
 
 import com.yixi_xun.more_potion_effects.MPEConfig;
-import com.yixi_xun.more_potion_effects.api.EffectUtils;
 import net.minecraft.core.Holder;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;

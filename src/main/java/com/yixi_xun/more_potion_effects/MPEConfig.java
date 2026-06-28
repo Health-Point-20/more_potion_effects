@@ -164,7 +164,7 @@ public class MPEConfig {
         UPGRADE_EXCLUSION = BUILDER.comment("升级效果不会升级的效果列表。").defineList("Upgrade Exclusion", List.of(), () -> "", entry -> true);
         NEGATIVE_POTION_ANTAGONISM = BUILDER.comment("药水拮抗是否对负面效果生效。").define("Negative Potion Antagonism", false);
         POTION_ANTAGONISM_REDUCE = BUILDER.comment("药水拮抗的持续时间减少公式（可用变量：duration、effectLevel）。").define("Potion Antagonism Reduce", "duration * 0.5 ^ effectLevel");
-        NON_REMOVABLE_EFFECTS = BUILDER.comment("不会被移除的药水效果，除了持续时间结束或/force_effect").defineList("NON-Removable Effects", List.of(), entry -> true);
+        NON_REMOVABLE_EFFECTS = BUILDER.comment("不会被移除的药水效果，除了持续时间结束或/force_effect").defineList("NON-Removable Effects", List.of(), () -> "", entry -> true);
         BUILDER.pop();
 
         BUILDER.push("Immune");

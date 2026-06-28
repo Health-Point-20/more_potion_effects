@@ -34,7 +34,6 @@ public class DeathMobEffect extends MobEffect implements IMobEffectRemovable {
 	private static final float MAX_DAMAGE = Float.POSITIVE_INFINITY;
 	private static final float NEGATIVE_HEALTH = Float.NEGATIVE_INFINITY;
 	private static final List<EntityType<?>> deathEntity = new ArrayList<>();
-	public static final Map<UUID, Integer> effectDuration = new HashMap<>();
 
 	public DeathMobEffect() {
 		super(MobEffectCategory.HARMFUL, -10925223);

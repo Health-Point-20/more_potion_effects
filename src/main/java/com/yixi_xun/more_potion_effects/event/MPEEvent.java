@@ -15,7 +15,11 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import static com.yixi_xun.more_potion_effects.event.handler.MPECombatHandler.*;
-import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.*;
+import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onEntityJoinWorldHandler;
+import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onEntityJumpHandler;
+import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onEntityTeleportHandler;
+import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onEntityTravelToDimensionHandler;
+import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onLivingSetAttackTargetHandler;
 import static com.yixi_xun.more_potion_effects.event.handler.MPEEnchantmentHandler.*;
 import static com.yixi_xun.more_potion_effects.event.handler.MPEPlayerHandler.*;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.PIERCE;
@@ -115,7 +119,7 @@ public class MPEEvent {
                 if (!data.contains("extra_pierce")) {
                     data.putBoolean("extra_pierce", true);
                     ((com.yixi_xun.more_potion_effects.mixin.AbstractArrowAccessor) arrow)
-                            .setPierceLevel((byte) (arrow.getPierceLevel() + pierceEffect.getAmplifier() + 1));
+                            .invokeSetPierceLevel((byte) (arrow.getPierceLevel() + pierceEffect.getAmplifier() + 1));
                 }
             }
         }
