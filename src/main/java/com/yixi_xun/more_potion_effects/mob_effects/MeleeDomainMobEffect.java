@@ -17,7 +17,6 @@ public class MeleeDomainMobEffect extends MobEffect {
 
     @Override
     public boolean applyEffectTick(@NotNull net.minecraft.world.entity.LivingEntity entity, int amplifier) {
-        // 近战领域的逻辑在 MPECombatHandler 中实现
         return true;
     }
 }

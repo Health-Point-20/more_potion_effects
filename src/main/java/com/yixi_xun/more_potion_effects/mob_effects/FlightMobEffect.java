@@ -1,7 +1,7 @@
 package com.yixi_xun.more_potion_effects.mob_effects;
 
 import com.yixi_xun.more_potion_effects.MorePotionEffectsMod;
-import com.yixi_xun.more_potion_effects.api.IMobEffectRemovable;
+import com.yixi_xun.more_potion_effects.api.IMoreMobEffect;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
@@ -15,7 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Objects;
 
 
-public class FlightMobEffect extends MobEffect implements IMobEffectRemovable {
+public class FlightMobEffect extends MobEffect implements IMoreMobEffect {
 
     // PERSISTENT_DATA键名
     private static final String FLIGHT_SPEED_DELTA_KEY = "flight_speed_delta";

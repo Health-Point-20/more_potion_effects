@@ -13,8 +13,6 @@ public class HomingMobEffect extends MobEffect {
 
     @Override
     public boolean applyEffectTick(@NotNull LivingEntity entity, int amplifier) {
-        // 追踪效果的核心逻辑在 MPECombatHandler / 投射物 tick 事件中实现
-        // 此处仅标记效果需要每 tick 处理
         return true;
     }
 

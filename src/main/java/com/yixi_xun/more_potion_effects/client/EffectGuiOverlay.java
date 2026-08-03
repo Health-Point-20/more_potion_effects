@@ -1,10 +1,8 @@
 package com.yixi_xun.more_potion_effects.client;
 
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
@@ -12,14 +10,14 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
-import org.jetbrains.annotations.NotNull;
 
 import java.text.DecimalFormat;
 
 import static com.yixi_xun.more_potion_effects.MorePotionEffectsMod.MOD_ID;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.*;
 
-@EventBusSubscriber(modid = MOD_ID, value = Dist.CLIENT)
+@SuppressWarnings("removal")
+@EventBusSubscriber(modid = MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public class EffectGuiOverlay {
 
     private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("##.#");
@@ -42,12 +40,6 @@ public class EffectGuiOverlay {
         if (player.hasEffect(HEALTH_SACRIFICE)) {
             String text = getHealthSacrificeText(player);
             guiGraphics.drawString(font, text, 14, yOffset, -1, false);
-            yOffset += 12;
-        }
-
-        if (player.hasEffect(STATIC_LIFE)) {
-            String text = getStaticLifeText(player);
-            guiGraphics.drawString(font, text, 14, yOffset, -1, false);
         }
     }
 
@@ -58,15 +50,5 @@ public class EffectGuiOverlay {
         double time = player.getPersistentData().getDouble("health_sacrifice_time");
         double damageBoost = (level + 3 + time * 0.0025);
         return "§4伤害增幅：" + DECIMAL_FORMAT.format(damageBoost) + "x";
-    }
-
-    private static String getStaticLifeText(Player player) {
-        double accumulated = player.getPersistentData().getDouble("static_damage");
-        if (accumulated > 0) {
-            return "§6生命静止 §c-" + DECIMAL_FORMAT.format(accumulated) + " HP";
-        } else if (accumulated < 0) {
-            return "§6生命静止 §a+" + DECIMAL_FORMAT.format(-accumulated) + " HP";
-        }
-        return "§6生命静止";
     }
 }

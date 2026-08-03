@@ -1,16 +1,16 @@
 package com.yixi_xun.more_potion_effects.api;
 
+import com.yixi_xun.more_potion_effects.MorePotionEffectsMod;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @EventBusSubscriber
@@ -19,10 +19,20 @@ public class HurtManager {
     // 存储额外伤害信息的Map
     private static final Map<LivingEntity, List<ExtraHurtData>> extraHurtQueue = new ConcurrentHashMap<>();
 
+    // 存储玩家横扫攻击的主要目标
+    private static final Map<Player, UUID> mainTargetMap = new ConcurrentHashMap<>();
+
     private static boolean onDealExtraDamage = false;
 
     public record ExtraHurtData(DamageSource source, float damage) {}
-    
+
+    /**
+     * 获取玩家横扫攻击的主要目标
+     */
+    public static UUID getMainTarget(Player player) {
+        return mainTargetMap.getOrDefault(player, null);
+    }
+
     /**
      * 添加额外伤害到队列中
      */
@@ -69,5 +79,15 @@ public class HurtManager {
             }
         }
         onDealExtraDamage = false;
+    }
+
+    /**
+     * 获取玩家横扫攻击的主要目标
+     */
+    @SubscribeEvent
+    public static void onAttackEntity(AttackEntityEvent event) {
+        mainTargetMap.put(event.getEntity(), event.getTarget().getUUID());
+        // 清理主要攻击目标
+        MorePotionEffectsMod.queueServerWork(1, () -> mainTargetMap.remove(event.getEntity()));
     }
 }

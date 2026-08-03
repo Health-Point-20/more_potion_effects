@@ -26,7 +26,5 @@ public class MorePotionEffectsModTabs {
 						tabData.accept(potionStack);
 					}
 				}
-			})
-
-					.build());
+			}).build());
 }

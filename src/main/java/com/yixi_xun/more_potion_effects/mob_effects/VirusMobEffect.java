@@ -1,6 +1,6 @@
 package com.yixi_xun.more_potion_effects.mob_effects;
 
-import com.yixi_xun.more_potion_effects.api.IMobEffectRemovable;
+import com.yixi_xun.more_potion_effects.api.IMoreMobEffect;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.BlockTags;
@@ -23,7 +23,7 @@ import java.util.List;
 
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.VIRUS;
 
-public class VirusMobEffect extends MobEffect implements IMobEffectRemovable {
+public class VirusMobEffect extends MobEffect implements IMoreMobEffect {
 
 	// 基础传染半径系数
 	private static final double BASE_RADIUS = 2.0;

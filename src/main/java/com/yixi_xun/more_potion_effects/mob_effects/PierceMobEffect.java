@@ -17,7 +17,6 @@ public class PierceMobEffect extends MobEffect {
 
     @Override
     public boolean applyEffectTick(@NotNull net.minecraft.world.entity.LivingEntity entity, int amplifier) {
-        // 穿透效果的逻辑在 MPECombatHandler 中实现
         return true;
     }
 }

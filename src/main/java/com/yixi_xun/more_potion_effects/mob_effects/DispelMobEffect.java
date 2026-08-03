@@ -1,6 +1,7 @@
 
 package com.yixi_xun.more_potion_effects.mob_effects;
 
+import com.yixi_xun.more_potion_effects.api.IEffectAccessor;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -35,6 +36,7 @@ public class DispelMobEffect extends MobEffect {
 						effect.isVisible(),
 						effect.showIcon()
 				));
+				((IEffectAccessor) entity).callOnEffectUpdated(effect, true, entity);
 			} else {
 				entity.removeEffect(effect.getEffect());
 			}

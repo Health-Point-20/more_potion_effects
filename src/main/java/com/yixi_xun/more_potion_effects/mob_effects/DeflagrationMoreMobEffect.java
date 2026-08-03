@@ -1,6 +1,6 @@
 package com.yixi_xun.more_potion_effects.mob_effects;
 
-import com.yixi_xun.more_potion_effects.api.IMobEffectRemovable;
+import com.yixi_xun.more_potion_effects.api.IMoreMobEffect;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -8,9 +8,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 
-public class DeflagrationMobEffect extends MobEffect implements IMobEffectRemovable {
+public class DeflagrationMoreMobEffect extends MobEffect implements IMoreMobEffect {
 
-    public DeflagrationMobEffect() {
+    public DeflagrationMoreMobEffect() {
         super(MobEffectCategory.HARMFUL, -494765);
     }
 

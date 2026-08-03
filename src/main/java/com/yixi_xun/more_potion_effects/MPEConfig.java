@@ -21,7 +21,7 @@ public class MPEConfig {
     public static final ModConfigSpec.ConfigValue<String> GLUTTONY_SPEED_MULTIPLIER;
     public static final ModConfigSpec.ConfigValue<String> FEAST_FOOD_ENHANCED;
 
-    // Damage modifier configs (from 1.20.1)
+    // Damage modifier configs
     public static final ModConfigSpec.ConfigValue<String> MELEE_DOMAIN_DISTANCE;
     public static final ModConfigSpec.ConfigValue<Double> EVASION_PROBABILITY;
     public static final ModConfigSpec.ConfigValue<Double> ARMOR_BROKEN_VALUE;
@@ -82,6 +82,7 @@ public class MPEConfig {
     public static final ModConfigSpec.ConfigValue<Boolean> NEGATIVE_POTION_ANTAGONISM;
     public static final ModConfigSpec.ConfigValue<String> POTION_ANTAGONISM_REDUCE;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> NON_REMOVABLE_EFFECTS;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> COMPANION_EFFECTS_LIST;
 
 
     static {
@@ -123,7 +124,7 @@ public class MPEConfig {
         ACCURATE_DAMAGE = BUILDER.comment("每级精准增加的伤害。").define("Accurate Damage", 0.25);
         MISALIGNMENT_REDUCE_DAMAGE = BUILDER.comment("每级失准减少的伤害。").define("Misalignment Reduce Damage", 0.2);
         WEAKENING_RECOVERY_AMOUNT = BUILDER.comment("每级弱效回复减少的回复量。").define("Weakening Recovery Amount", 0.2);
-        SLAUGHTER_DAMAGE = BUILDER.comment("使伤害变为：伤害*(实体的损失生命值百分比^x)*效果等级").define("Slaughter Damage", 0.35);
+        SLAUGHTER_DAMAGE = BUILDER.comment("使伤害增加：伤害*(实体的损失生命值百分比*效果等级)^x").define("Slaughter Damage", 0.35);
         INJURY_ACCUMULATION_DAMAGE = BUILDER.comment("受到伤害时额外受到(损失的生命值*x)*效果等级的伤害").define("Injury Accumulation", 0.08);
         MAGIC_FOCUS_DAMAGE = BUILDER.comment("魔力聚焦增加造成的魔法伤害百分比。").define("Magic Focus Damage", 0.25);
         MAGIC_SHIELD_REDUCE_DAMAGE = BUILDER.comment("魔法护盾减少的受到的魔法伤害的百分比。").define("Magic Shield Reduce Damage", 0.2);
@@ -132,7 +133,15 @@ public class MPEConfig {
         STRONG_HEART_RECOVERY = BUILDER.comment("每级强心提升恢复的生命值。").define("Strong Heart Recovery", 0.25);
         CURSE_COUNT = BUILDER.comment("每级诅咒效果施加几种对应的负面效果。(Range：1-4)").define("Curse Count", 2.0);
         HEALTH_CONVERSION_RATIO = BUILDER.comment("每级生命转化的转化率").define("Health Conversion Ratio", 0.2);
-        KINETIC_CALCULATION_FORMULA = BUILDER.comment("动能效果的增伤公式（可用变量:effectLevel、damage、speed）").define("Kinetic Calculation Formula", "damage * speed * effectLevel * 0.25f + effectLevel * speed * 2f");
+        KINETIC_CALCULATION_FORMULA = BUILDER.comment("动能效果的增伤公式（可用变量:effectLevel、damage、speed）").define("Kinetic Calculation Formula", "damage * speed * effectLevel * 0.25 + effectLevel * speed * 2");
+        UPGRADE_EXCLUSION = BUILDER.comment("升级效果不会升级的效果列表。").defineList("Upgrade Exclusion", List.of(), () -> "", entry -> true);
+        NEGATIVE_POTION_ANTAGONISM = BUILDER.comment("药水拮抗是否对负面效果生效。").define("Negative Potion Antagonism", false);
+        POTION_ANTAGONISM_REDUCE = BUILDER.comment("药水拮抗的持续时间减少公式（可用变量：duration、effectLevel）。").define("Potion Antagonism Reduce", "duration * 0.5 ^ effectLevel");
+        COMPANION_EFFECTS_LIST = BUILDER.comment("同伴效果触发时可获得的效果列表（留空则随机正面效果）").defineList("Companion Effects List", List.of(), () -> "", entry -> true);
+        SUPER_DEATH_MODE = BUILDER.comment("是否启用超级死亡模式（高等级死亡效果会移除实体）。").define("Super Death Mode", false);
+        RANK_EFFECTS_ENABLED = BUILDER.comment("是否为非玩家实体添加随机效果池效果。").define("Rank Effects Enabled", true);
+        SUPER_CORROSION = BUILDER.comment("是否启用超级腐蚀模式（可以腐蚀无法破坏装备）。").define("Super Corrosion", false);
+
 
         BUILDER.push("Virus");
         VIRUS_BASE_RADIUS = BUILDER.comment("病毒效果基础传染半径。").define("Virus Base Radius", 2.0);
@@ -145,25 +154,10 @@ public class MPEConfig {
 
         BUILDER.pop();
 
-        BUILDER.push("Death");
-        SUPER_DEATH_MODE = BUILDER.comment("是否启用超级死亡模式（高等级死亡效果会移除实体）。").define("Super Death Mode", false);
-        BUILDER.pop();
-
-        BUILDER.push("Rank");
-        RANK_EFFECTS_ENABLED = BUILDER.comment("是否为非玩家实体添加随机效果池效果。").define("Rank Effects Enabled", true);
-        BUILDER.pop();
-
-        BUILDER.push("Corrosion");
-        SUPER_CORROSION = BUILDER.comment("是否启用超级腐蚀模式（可以完全摧毁装备）。").define("Super Corrosion", false);
-        BUILDER.pop();
-
         BUILDER.push("Special");
         BAN_LIST = BUILDER.comment("禁用的药水效果").defineList("Ban List", List.of(), () -> "", entry -> true);
         FORCE_EFFECTS = BUILDER.comment("能被强行添加到生物的效果。").defineList("Force effects", List.of(), () -> "", entry -> true);
         ENTITY_LIST = BUILDER.comment("强行使列表中的生物能被添加药水效果。").defineList("Entity List", List.of(), () -> "", entry -> true);
-        UPGRADE_EXCLUSION = BUILDER.comment("升级效果不会升级的效果列表。").defineList("Upgrade Exclusion", List.of(), () -> "", entry -> true);
-        NEGATIVE_POTION_ANTAGONISM = BUILDER.comment("药水拮抗是否对负面效果生效。").define("Negative Potion Antagonism", false);
-        POTION_ANTAGONISM_REDUCE = BUILDER.comment("药水拮抗的持续时间减少公式（可用变量：duration、effectLevel）。").define("Potion Antagonism Reduce", "duration * 0.5 ^ effectLevel");
         NON_REMOVABLE_EFFECTS = BUILDER.comment("不会被移除的药水效果，除了持续时间结束或/force_effect").defineList("NON-Removable Effects", List.of(), () -> "", entry -> true);
         BUILDER.pop();
 

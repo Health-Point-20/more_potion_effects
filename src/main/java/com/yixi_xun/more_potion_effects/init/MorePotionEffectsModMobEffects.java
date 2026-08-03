@@ -78,7 +78,7 @@ public class MorePotionEffectsModMobEffects {
 	public static final DeferredHolder<MobEffect, MobEffect> BLEEDING = REGISTRY.register("bleeding", BleedingMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> LIGHTLY_LOADED = REGISTRY.register("lightly_loaded", LightlyLoadedMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> HEAVY_ARMOR = REGISTRY.register("heavy_armor", HeavyArmorMobEffect::new);
-	public static final DeferredHolder<MobEffect, MobEffect> HEAVY = REGISTRY.register("heavy", HeavyMobEffect::new);
+	public static final DeferredHolder<MobEffect, MobEffect> HEAVY = REGISTRY.register("heavy", HeavyMoreEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> HIGHLY_TOXIC = REGISTRY.register("highly_toxic", HighlyToxicMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> INJURY_OUTBURST = REGISTRY.register("injury_outburst", InjuryOutburstMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> ACCURATE = REGISTRY.register("accurate", AccurateMobEffect::new);
@@ -101,7 +101,7 @@ public class MorePotionEffectsModMobEffects {
 	public static final DeferredHolder<MobEffect, MobEffect> AIRSTRIDE = REGISTRY.register("airstride", AirstrideMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> WANE = REGISTRY.register("wane", WaneMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> ERUDITE = REGISTRY.register("erudite", EruditeMobEffect::new);
-	public static final DeferredHolder<MobEffect, MobEffect> DEFLAGRATION = REGISTRY.register("deflagration", DeflagrationMobEffect::new);
+	public static final DeferredHolder<MobEffect, MobEffect> DEFLAGRATION = REGISTRY.register("deflagration", DeflagrationMoreMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> VEILED_PRESENCE = REGISTRY.register("veiled_presence", VeiledPresenceMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> SPATIAL_ANCHOR = REGISTRY.register("spatial_anchor", SpatialAnchorMobEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> ASYLUM = REGISTRY.register("asylum", AsylumMobEffect::new);

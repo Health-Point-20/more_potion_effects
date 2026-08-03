@@ -1,6 +1,8 @@
 package com.yixi_xun.more_potion_effects.event.handler;
 
+import com.yixi_xun.more_potion_effects.MPEConfig;
 import com.yixi_xun.more_potion_effects.api.EffectUtils;
+import com.yixi_xun.more_potion_effects.api.HurtManager;
 import com.yixi_xun.more_potion_effects.init.MorePotionEffectsModEnchantments;
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
@@ -8,6 +10,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -92,8 +95,7 @@ public class MPEEnchantmentHandler {
         if (!(event.getSource().getEntity() instanceof LivingEntity attacker)) return;
         LivingEntity target = event.getEntity();
 
-        boolean mainTargetOnly = ENCHANT_MAIN_TARGET_ONLY.get();
-        if (mainTargetOnly && attacker instanceof Player player && player.getAttackStrengthScale(0.5F) <= 0.95F) {
+        if (CannotTriggerEffect(attacker, target)) {
             return;
         }
 
@@ -107,6 +109,26 @@ public class MPEEnchantmentHandler {
         handleSourceOfBlessing(attacker, weapon);
         handleSourceOfCurses(attacker, target, weapon);
         handleSunderArmor(attacker, target, weapon);
+    }
+
+    private static boolean CannotTriggerEffect(Entity attacker, Entity victim) {
+        if (attacker instanceof Player player) {
+            boolean isAttackReady = player.getAttackStrengthScale(0.5F) >= 0.95F;
+            if (!isAttackReady) {
+                // 攻击未冷却完毕时不触发
+                return true;
+            }
+            // 检查是否仅对主目标生效
+            if (!MPEConfig.ENCHANT_MAIN_TARGET_ONLY.get()) {
+                // 不限制仅主目标时可以触发
+                return false;
+            }
+            // 检查为当前目标是否是主目标
+            return HurtManager.getMainTarget(player) != victim.getUUID();
+        } else {
+            // 其他实体默认可以触发
+            return false;
+        }
     }
 
     private static void handleEliminationEffect(LivingEntity target, ItemStack weapon) {

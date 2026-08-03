@@ -1,8 +1,8 @@
 package com.yixi_xun.more_potion_effects.event.handler;
 
 import com.yixi_xun.more_potion_effects.MorePotionEffectsMod;
-import com.yixi_xun.more_potion_effects.api.HurtManager;
 import com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects;
+import com.yixi_xun.more_potion_effects.mixin.AbstractArrowAccessor;
 import com.yixi_xun.more_potion_effects.mob_effects.KineticMobEffect;
 import com.yixi_xun.more_potion_effects.mob_effects.VeiledPresenceMobEffect;
 import net.minecraft.core.BlockPos;
@@ -18,15 +18,21 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.OwnableEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
@@ -37,7 +43,9 @@ import java.text.DecimalFormat;
 import java.util.*;
 
 import static com.yixi_xun.more_potion_effects.MPEConfig.*;
+import static com.yixi_xun.more_potion_effects.MorePotionEffectsMod.MOD_ID;
 import static com.yixi_xun.more_potion_effects.api.ConfigHelper.evaluate;
+import static com.yixi_xun.more_potion_effects.api.HurtManager.extraHurt;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.*;
 
 public class MPECombatHandler {
@@ -99,8 +107,8 @@ public class MPECombatHandler {
             event.setCanceled(false);
         }
 
-        // === 近战领域 (1.20.1: on ATTACKER) ===
-        MobEffectInstance meleeDomain = attacker.getEffect(MELEE_DOMAIN);
+        // === 近战领域 ===
+        MobEffectInstance meleeDomain = target.getEffect(MELEE_DOMAIN);
         if (meleeDomain != null) {
             int effectLevel = meleeDomain.getAmplifier() + 1;
             double distance = attacker.distanceTo(target);
@@ -127,14 +135,13 @@ public class MPECombatHandler {
         // 潜匿 - 攻击时建立关系
         VeiledPresenceMobEffect.onAttack(attacker, target);
 
-        // === 攻击方伤害修正 (matches 1.20.1 AttackamplificationProcedure) ===
 
         // 屠戮
         MobEffectInstance slaughter = attacker.getEffect(SLAUGHTER);
-        if (slaughter != null) {
+        if (slaughter != null && target.getHealth() > 0f) {
             int level = slaughter.getAmplifier() + 1;
             double missingRatio = (target.getMaxHealth() - target.getHealth()) / target.getMaxHealth();
-            damage *= (float) (Math.pow(missingRatio, SLAUGHTER_DAMAGE.get()) * level);
+            damage += (float) (damage * Math.pow(missingRatio * level, SLAUGHTER_DAMAGE.get()));
         }
 
         // 巨力
@@ -169,8 +176,8 @@ public class MPECombatHandler {
         MobEffectInstance healthSacrifice = attacker.getEffect(HEALTH_SACRIFICE);
         if (healthSacrifice != null) {
             int level = healthSacrifice.getAmplifier() + 1;
-            double time = attacker.getPersistentData().getDouble("health_sacrifice_time");
-            damage *= (float) (level + 3 + time * 0.0025);
+            int time = attacker.getPersistentData().getInt("health_sacrifice_time");
+            damage *= level + 3 + time * 0.0025f;
         }
 
         // 伤势累积 (攻击触发)
@@ -179,11 +186,11 @@ public class MPECombatHandler {
             int level = injuryAcc.getAmplifier() + 1;
             float missingHealth = target.getMaxHealth() - target.getHealth();
             float extraDamage = missingHealth * level * INJURY_ACCUMULATION_DAMAGE.get().floatValue();
-            target.hurt(new DamageSource(
+            DamageSource InternalInjury = new DamageSource(
                     target.level().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE)
                             .getHolderOrThrow(ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.parse("more_potion_effects:internal_injury"))),
-                    attacker
-            ), extraDamage);
+                    attacker);
+            extraHurt(target, InternalInjury, extraDamage);
         }
 
         // 精准 (远程)
@@ -368,12 +375,12 @@ public class MPECombatHandler {
         Vec3 attackerVelocity;
         Vec3 targetVelocity;
         if (attacker instanceof Player player) {
-            attackerVelocity = KineticMobEffect.velocities.getOrDefault(player, Vec3.ZERO);
+            attackerVelocity = KineticMobEffect.velocities.getOrDefault(player.getUUID(), Vec3.ZERO);
         } else {
             attackerVelocity = attacker.getDeltaMovement();
         }
         if (target instanceof Player player) {
-            targetVelocity = KineticMobEffect.velocities.getOrDefault(player, Vec3.ZERO);
+            targetVelocity = KineticMobEffect.velocities.getOrDefault(player.getUUID(), Vec3.ZERO);
         } else {
             targetVelocity = target.getDeltaMovement();
         }
@@ -383,7 +390,6 @@ public class MPECombatHandler {
         return speed;
     }
 
-    // ==================== Existing handlers (kept from original) ====================
 
     private static void handleInjuryLink(LivingEntity target, float damage, LivingIncomingDamageEvent event) {
         MobEffectInstance injuryLink = target.getEffect(INJURY_LINK);
@@ -406,8 +412,6 @@ public class MPECombatHandler {
                 var partnerInjuryLink = entity.getEffect(INJURY_LINK);
                 if (partnerInjuryLink != null) {
                     partners.put(entity, partnerInjuryLink.getAmplifier() + 1);
-                } else {
-                    partners.put(entity, 0);
                 }
             }
         }
@@ -422,79 +426,95 @@ public class MPECombatHandler {
         float targetMaxHealth = target.getMaxHealth();
         float sharableDamage = Math.min(damage, targetMaxHealth);
         float unsharableDamage = damage - sharableDamage;
+
+        // 目标按权重比例承担的伤害
         float targetSharedDamage = sharableDamage * ((float) level / totalWeight);
-        float remainingDamage = sharableDamage - targetSharedDamage;
 
         for (Map.Entry<LivingEntity, Integer> entry : partners.entrySet()) {
             LivingEntity partner = entry.getKey();
             int partnerWeight = entry.getValue();
-            float sharedDamage = remainingDamage * ((float) partnerWeight / (totalWeight - level));
-            HurtManager.extraHurt(partner, event.getSource(), sharedDamage);
+
+
+            // 伙伴分摊额 = (可分摊总伤害) * (同伴权重 / 总权重)
+            float sharedDamage = sharableDamage * ((float) partnerWeight / totalWeight);
+
+
+            extraHurt(partner, event.getSource(), sharedDamage);
+
             createConnectionParticles(serverLevel, target, partner, sharedDamage, partnerWeight);
         }
 
+        // 目标受到的伤害 = 目标分摊的份额 + 超出上限无法分摊的份额
         event.setAmount(targetSharedDamage + unsharableDamage);
     }
 
     private static void createConnectionParticles(ServerLevel serverLevel, LivingEntity from, LivingEntity to, float sharedDamage, int partnerWeight) {
         double startX = from.getX();
-        double startY = from.getY() + from.getBbHeight() / 2;
+        double startY = from.getY() + from.getBbHeight() / 2.0;
         double startZ = from.getZ();
 
         double endX = to.getX();
-        double endY = to.getY() + to.getBbHeight() / 2;
+        double endY = to.getY() + to.getBbHeight() / 2.0;
         double endZ = to.getZ();
 
         double dx = endX - startX;
         double dy = endY - startY;
         double dz = endZ - startZ;
+
         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-        if (distance > 0) {
-            dx /= distance;
-            dy /= distance;
-            dz /= distance;
-        }
-
-        int particleCount = (int) Math.min((sharedDamage - 2) * 0.5, 64);
-        if (particleCount <= 0) return;
+        // 修复粒子数量计算：确保小伤害也有粒子，且避免负数
+        int particleCount = Math.max(1, (int) Math.min(sharedDamage * 3.0, 128));
+        float particleScale = Math.min((float) (0.5 + Math.log10(sharedDamage + 1)), 1.5f);
 
         DustParticleOptions redDust = new DustParticleOptions(
                 new Vector3f(1.0f, 0.0f, 0.0f),
-                2.0f
+                particleScale
         );
 
-        for (int i = 0; i < particleCount; i++) {
-            double t = (double) i / (particleCount - 1);
-            double px = startX + dx * distance * t;
-            double py = startY + dy * distance * t;
-            double pz = startZ + dz * distance * t;
-            double offsetX = (Math.random() - 0.5) * 0.1;
-            double offsetY = (Math.random() - 0.5) * 0.1;
-            double offsetZ = (Math.random() - 0.5) * 0.1;
-            serverLevel.sendParticles(redDust, px + offsetX, py + offsetY, pz + offsetZ, 1, 0.0, 0.0, 0.0, 0.3);
+        RandomSource random = serverLevel.random;
+
+        // 生成连线粒子
+        if (distance > 0.1) { // 避免距离太近导致视觉异常
+            for (int i = 0; i < particleCount; i++) {
+                double t = particleCount > 1 ? (double) i / (particleCount - 1) : 0.5;
+                double px = startX + dx * t;
+                double py = startY + dy * t;
+                double pz = startZ + dz * t;
+
+                double offsetX = (random.nextDouble() - 0.5) * 0.1;
+                double offsetY = (random.nextDouble() - 0.5) * 0.1;
+                double offsetZ = (random.nextDouble() - 0.5) * 0.1;
+
+                serverLevel.sendParticles(redDust, px + offsetX, py + offsetY, pz + offsetZ, 1, 0.0, 0.0, 0.0, 0.0);
+            }
         }
 
-        double receiverX = to.getX();
-        double receiverY = to.getY() + to.getBbHeight() / 2.0;
-        double receiverZ = to.getZ();
-        for (int i = 0; i < partnerWeight * 2; i++) {
-            double offsetX = (Math.random() - 0.5) * 0.6;
-            double offsetY = (Math.random() - 0.5) * 0.6;
-            double offsetZ = (Math.random() - 0.5) * 0.6;
-            serverLevel.sendParticles(redDust, receiverX + offsetX, receiverY + offsetY, receiverZ + offsetZ, 1, 0.05, 0.05, 0.05, 0.5);
+        // 在接收者位置生成爆发粒子
+        int burstCount = Math.max(3, partnerWeight * 2); // 确保至少有几个粒子
+        for (int i = 0; i < burstCount; i++) {
+            double offsetX = (random.nextDouble() - 0.5) * 0.6;
+            double offsetY = (random.nextDouble() - 0.5) * 0.6;
+            double offsetZ = (random.nextDouble() - 0.5) * 0.6;
+            serverLevel.sendParticles(redDust,
+                    endX + offsetX, endY + offsetY, endZ + offsetZ,
+                    1, 0.05, 0.05, 0.05, 0.0); // 速度设为0，依靠偏移散开即可
         }
     }
 
     private static boolean isPartner(LivingEntity entity, LivingEntity target) {
+        // 判断是否有主仆关系
         if (entity instanceof OwnableEntity ownable && ownable.getOwner() == target
                 || target instanceof OwnableEntity ownableTarget && ownableTarget.getOwner() == entity) {
             return true;
         }
-        if (target.getTeam() != null) {
-            String teamName = target.getTeam().getName();
-            return entity.getTeam() != null && entity.getTeam().getName().equals(teamName);
+
+        // 团队关系
+        if (target.getTeam() != null && target.getTeam().isAlliedTo(entity.getTeam())) {
+            return true;
         }
+
+        // 种族关系
         return entity.getType() == target.getType();
     }
 
@@ -558,7 +578,7 @@ public class MPECombatHandler {
         MobEffectInstance resonatingStrike = attacker.getEffect(RESONATING_STRIKE);
         if (resonatingStrike != null) {
             int level = resonatingStrike.getAmplifier() + 1;
-            HurtManager.extraHurt(target, event.getSource(), event.getAmount() * (0.5f + level * 0.25f));
+            extraHurt(target, event.getSource(), event.getAmount() * (0.5f + level * 0.25f));
         }
     }
 
@@ -566,21 +586,18 @@ public class MPECombatHandler {
         MobEffectInstance recoilEffect = target.getEffect(MorePotionEffectsModMobEffects.RECOIL);
         if (recoilEffect != null && attacker != target) {
             int recoilLevel = recoilEffect.getAmplifier() + 1;
-            HurtManager.extraHurt(attacker, new DamageSource(source.typeHolder(), target), damage * 0.2f * recoilLevel);
+            extraHurt(attacker, new DamageSource(source.typeHolder(), target), damage * 0.2f * recoilLevel);
         }
     }
 
     // ==================== LivingDamageEvent ====================
 
-    public static void onDamageHandler(LivingDamageEvent.Pre event) {
+    public static void onDamagePreHandler(LivingDamageEvent.Pre event) {
         DamageSource source = event.getSource();
         LivingEntity target = event.getEntity();
         LivingEntity attacker = source.getEntity() instanceof LivingEntity ? (LivingEntity) source.getEntity() : null;
-        if (attacker == null && source.getDirectEntity() instanceof Projectile proj && proj.getOwner() instanceof LivingEntity owner) {
-            attacker = owner;
-        }
         CompoundTag data = target.getPersistentData();
-        float damage = event.getOriginalDamage();
+        float damage = event.getNewDamage();
 
         // === 限伤 ===
         MobEffectInstance injuryLimitation = target.getEffect(INJURY_LIMITATION);
@@ -602,9 +619,27 @@ public class MPECombatHandler {
             }
         }
 
+        handleUnyieldingWillpower(target, event, damage);
+        if (attacker != null) {
+            handleAdaptation(target, attacker, event, data, damage);
+            handleTrueDamage(target, attacker, event, data, damage, source);
+        }
+
         // === 生命静止 ===
         if (target.hasEffect(STATIC_LIFE)) {
-            double accumulatedDamage = data.getDouble("static_damage") + damage;
+            data.putDouble("static_incoming_damage", event.getNewDamage());
+            event.setNewDamage(0);
+        }
+    }
+
+    public static void onDamagePostHandler(LivingDamageEvent.Post event) {
+        LivingEntity target = event.getEntity();
+        CompoundTag data = target.getPersistentData();
+
+        if (target.hasEffect(STATIC_LIFE)) {
+            double incomingDamage = data.getDouble("static_incoming_damage");
+            data.remove("static_incoming_damage");
+            double accumulatedDamage = data.getDouble("static_damage") + incomingDamage;
             data.putDouble("static_damage", accumulatedDamage);
             if (target instanceof Player player && !player.level().isClientSide()) {
                 Component message;
@@ -615,21 +650,14 @@ public class MPECombatHandler {
                 }
                 player.displayClientMessage(message, true);
             }
-            event.setNewDamage(0);
-            return;
-        }
-
-        handleUnyieldingWillpower(target, event, damage);
-        if (attacker != null) {
-            handleAdaptation(target, attacker, event, data, damage);
-            handleTrueDamage(target, attacker, event, data, damage, source);
         }
     }
 
+    // === 不屈意志 ===
     private static void handleUnyieldingWillpower(LivingEntity target, LivingDamageEvent.Pre event, float damage) {
         MobEffectInstance instance = target.getEffect(UNYIELDING_WILLPOWER);
         double currentHealth = target.getHealth();
-        if (instance == null || event.getSource().is(ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.parse("more_potion_effects:static_damage")))) return;
+        if (instance == null || event.getSource().typeHolder().is(ResourceLocation.parse("more_potion_effects:static_damage"))) return;
         if (damage < currentHealth) return;
 
         Level level = target.level();
@@ -643,20 +671,22 @@ public class MPECombatHandler {
             String[] messages = {baseMessage + ".", baseMessage + "..", baseMessage + "..."};
             for (int i = 0; i < 3; i++) {
                 int finalI = i;
+                int effectLevel = instance.getAmplifier() + 1;
                 MorePotionEffectsMod.queueServerWork(finalI * 30 + 5, () -> {
                     if (target instanceof Player player) player.displayClientMessage(Component.literal(messages[finalI]), true);
                     if (finalI == 2) {
-                        int effectLevel = instance.getAmplifier() + 1;
                         double chance = evaluate(UNYIELDING_CHANCE.get(), "effectLevel", effectLevel);
-                        if (Math.random() >= chance) {
-                            target.setHealth(Math.max(0.001f, target.getHealth() - damage));
-                            target.hurt(event.getSource(), damage);
-                            return;
-                        }
+                        // 概率判定
+                        if (Math.random() >= chance) return;
                         if (!target.isAlive()) return;
+
                         level.playSound(null, BlockPos.containing(target.getX(), target.getY(), target.getZ()), SoundEvents.ENDER_DRAGON_HURT, SoundSource.PLAYERS, 1.0f, 1.0f);
                         double absorption = Math.min(16 * effectLevel, effectLevel * 4 + damage * 0.25 * effectLevel);
+                        var absorptionAttr = target.getAttribute(Attributes.MAX_ABSORPTION);
+                        if (absorptionAttr != null) {
+                        absorptionAttr.addOrUpdateTransientModifier(new AttributeModifier(ResourceLocation.fromNamespaceAndPath(MOD_ID, "unyielding_willpower"), absorption, AttributeModifier.Operation.ADD_VALUE));
                         target.setAbsorptionAmount((float) absorption);
+                        }
                         target.setHealth(1);
                         if (!level.isClientSide()) target.addEffect(new MobEffectInstance(IMMUNE, 1, 3));
                         int count = target.getPersistentData().getInt("Unyielding_Count") + 1;
@@ -719,6 +749,7 @@ public class MPECombatHandler {
 
     public static void onHealHandler(LivingHealEvent event) {
         LivingEntity entity = event.getEntity();
+        CompoundTag data = entity.getPersistentData();
 
         // 强心
         MobEffectInstance strongHeart = entity.getEffect(STRONG_HEART);
@@ -740,15 +771,18 @@ public class MPECombatHandler {
             int level = overdose.getAmplifier() + 1;
             float overflow = entity.getHealth() + event.getAmount() - entity.getMaxHealth();
             if (overflow > 0) {
-                CompoundTag data = entity.getPersistentData();
                 double overHealing = data.getDouble("overHealing") + overflow;
                 data.putDouble("overHealing", overHealing);
-                double absorption = Math.min(entity.getMaxHealth() * 0.25 + 5, Math.pow(overHealing, 0.6) * level);
+                double absorption = Math.min((entity.getMaxHealth() * 0.25 + 5) * level, Math.pow(overHealing * level, 0.6));
+                var absorptionAttr = entity.getAttribute(Attributes.MAX_ABSORPTION);
+                if (absorptionAttr != null) {
+                    absorptionAttr.addOrUpdateTransientModifier(new AttributeModifier(ResourceLocation.fromNamespaceAndPath(MOD_ID, "overdose_treatment"), absorption, AttributeModifier.Operation.ADD_VALUE));
+                }
                 entity.setAbsorptionAmount((float) absorption);
             }
         }
 
-        // 燃命 (治疗减半)
+        // 燃命
         MobEffectInstance healthSacrifice = entity.getEffect(HEALTH_SACRIFICE);
         if (healthSacrifice != null) {
             int level = healthSacrifice.getAmplifier() + 1;
@@ -757,7 +791,6 @@ public class MPECombatHandler {
 
         // 生命静止 (治疗延迟)
         if (entity.hasEffect(STATIC_LIFE)) {
-            CompoundTag data = entity.getPersistentData();
             double accumulated = data.getDouble("static_damage") - event.getAmount();
             data.putDouble("static_damage", accumulated);
             if (entity instanceof Player player && !player.level().isClientSide()) {
@@ -816,5 +849,22 @@ public class MPECombatHandler {
         }
         entity.addEffect(new MobEffectInstance(OVERDOSE_TREATMENT, 100, amplifier));
         entity.addEffect(new MobEffectInstance(SELF_HEALING, 100, amplifier));
+    }
+
+    public static void onProjectileImpactHandler(ProjectileImpactEvent event) {
+        // 穿透效果
+        if (event.getRayTraceResult() instanceof EntityHitResult hitResult
+                && event.getProjectile() instanceof AbstractArrow arrow
+                && hitResult.getEntity() instanceof LivingEntity
+                && arrow.getOwner() instanceof LivingEntity shooter) {
+            MobEffectInstance pierceEffect = shooter.getEffect(PIERCE);
+            if (pierceEffect != null) {
+                CompoundTag data = arrow.getPersistentData();
+                if (!data.contains("extra_pierce")) {
+                    data.putBoolean("extra_pierce", true);
+                    ((AbstractArrowAccessor) arrow).callOnSetPierceLevel((byte) (arrow.getPierceLevel() + pierceEffect.getAmplifier() + 1));
+                }
+            }
+        }
     }
 }

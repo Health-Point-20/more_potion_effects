@@ -1,6 +1,6 @@
 package com.yixi_xun.more_potion_effects.mob_effects;
 
-import com.yixi_xun.more_potion_effects.api.IMobEffectRemovable;
+import com.yixi_xun.more_potion_effects.api.IMoreMobEffect;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
@@ -13,14 +13,14 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
-public class HeavyMobEffect extends MobEffect implements IMobEffectRemovable {
+public class HeavyMoreEffect extends MobEffect implements IMoreMobEffect {
 
     // 属性修饰符ID
     private static final ResourceLocation GRAVITY_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "effect.heavy_gravity");
     private static final ResourceLocation MOVEMENT_SPEED_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "effect.heavy_speed");
     private static final ResourceLocation STEP_HEIGHT_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "effect.heavy_step_height");
 
-    public HeavyMobEffect() {
+    public HeavyMoreEffect() {
         super(MobEffectCategory.HARMFUL, -10092544);
     }
 

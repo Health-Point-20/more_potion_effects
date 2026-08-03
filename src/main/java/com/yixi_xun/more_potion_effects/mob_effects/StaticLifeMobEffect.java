@@ -2,7 +2,7 @@
 package com.yixi_xun.more_potion_effects.mob_effects;
 
 import com.yixi_xun.more_potion_effects.MorePotionEffectsMod;
-import com.yixi_xun.more_potion_effects.api.IMobEffectRemovable;
+import com.yixi_xun.more_potion_effects.api.IMoreMobEffect;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -17,7 +17,7 @@ import org.jetbrains.annotations.NotNull;
 
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.*;
 
-public class StaticLifeMobEffect extends MobEffect implements IMobEffectRemovable {
+public class StaticLifeMobEffect extends MobEffect implements IMoreMobEffect {
 	public StaticLifeMobEffect() {
 		super(MobEffectCategory.BENEFICIAL, -13261);
 	}
@@ -63,20 +63,18 @@ public class StaticLifeMobEffect extends MobEffect implements IMobEffectRemovabl
 	}
 
 	@Override
-	public void onEffectAdded(@NotNull LivingEntity entity, int amplifier) {
-	}
-
-	@Override
-	public void onEffectRemoved(@NotNull LivingEntity entity, MobEffectInstance instance) {
-		if (instance != null && entity.getPersistentData().getFloat("static_damage")
-				* Math.max(1 - (entity.hasEffect(STATIC_LIFE) ? instance.getAmplifier() : 0) * 0.2, 0) >= 0) {
+	public void onEffectRemoved(LivingEntity entity, MobEffectInstance instance) {
+		if (instance != null && entity.getPersistentData().getDouble("static_damage") >= 0) {
 			MorePotionEffectsMod.queueServerWork(0, () -> {
-				entity.hurt(new DamageSource(entity.level().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.parse("more_potion_effects:static_damage")))),
-						(float) Math.min(entity.getPersistentData().getFloat("static_damage") * Math.max(
-										1 - (entity.hasEffect(STATIC_LIFE) ? instance.getAmplifier() : 0) * 0.2, 0),
-								Math.pow(2, 63) - 1));
-				entity.getPersistentData().putFloat("static_damage", 0);
+				DamageSource staticDamageSource = new DamageSource(entity.level().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.parse("more_potion_effects:static_damage"))));
+				float damage = Math.min((float) entity.getPersistentData().getDouble("static_damage"), Float.MAX_VALUE);
+
+				entity.hurt(staticDamageSource, damage);
+				entity.getPersistentData().remove("static_damage");
 			});
+		} else {
+			entity.setHealth(entity.getHealth() - (float) entity.getPersistentData().getDouble("static_damage"));
+			entity.getPersistentData().remove("static_damage");
 		}
 	}
 
@@ -84,5 +82,4 @@ public class StaticLifeMobEffect extends MobEffect implements IMobEffectRemovabl
 	public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) {
 		return true;
 	}
-
 }

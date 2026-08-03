@@ -2,7 +2,7 @@ package com.yixi_xun.more_potion_effects.api;
 
 import com.yixi_xun.more_potion_effects.MPEConfig;
 import com.yixi_xun.more_potion_effects.MorePotionEffectsMod;
-import com.yixi_xun.more_potion_effects.mixin.LivingEntityMixin;
+import com.yixi_xun.more_potion_effects.mixin.LivingEntityAccessor;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -82,7 +82,7 @@ public class EffectUtils {
     public static void forceAddEffect(LivingEntity entity, MobEffectInstance effect, @Nullable Entity source) {
         if (entity == null || effect == null) return;
 
-        LivingEntityMixin accessor = (LivingEntityMixin) entity;
+        LivingEntityAccessor accessor = (LivingEntityAccessor) entity;
         Map<Holder<MobEffect>, MobEffectInstance> effectMap = entity.getActiveEffectsMap();
         Holder<MobEffect> effectKey = effect.getEffect();
 
@@ -91,22 +91,23 @@ public class EffectUtils {
 
         if (existing == null) {
             accessor.callOnEffectAdded(effect, source);
-        } else if (existing.update(effect)) {
+        } else {
             accessor.callOnEffectUpdated(existing, true, source);
         }
-        accessor.setEffectsDirty(true);
     }
 
     public static void forceRemoveEffect(LivingEntity entity, Holder<MobEffect> effect) {
         if (entity == null || effect == null) return;
 
-        LivingEntityMixin accessor = (LivingEntityMixin) entity;
+        LivingEntityAccessor accessor = (LivingEntityAccessor) entity;
         Map<Holder<MobEffect>, MobEffectInstance> effectMap = entity.getActiveEffectsMap();
 
         MobEffectInstance removed = effectMap.remove(effect);
         if (removed != null) {
             accessor.callOnEffectRemoved(removed);
-            accessor.setEffectsDirty(true);
+            if (removed.getEffect().value() instanceof IMoreMobEffect mEffect) {
+                mEffect.onEffectRemoved(entity, removed);
+            }
         }
     }
 
@@ -115,7 +116,7 @@ public class EffectUtils {
             return;
         }
 
-        LivingEntityMixin accessor = (LivingEntityMixin) entity;
+        LivingEntityAccessor accessor = (LivingEntityAccessor) entity;
         MobEffectInstance existing = entity.getEffect(effect);
 
         if (existing == null) {

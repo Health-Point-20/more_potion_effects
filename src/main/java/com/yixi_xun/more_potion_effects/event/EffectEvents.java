@@ -1,7 +1,7 @@
 package com.yixi_xun.more_potion_effects.event;
 
 import com.yixi_xun.more_potion_effects.api.EffectUtils;
-import com.yixi_xun.more_potion_effects.api.IMobEffectRemovable;
+import com.yixi_xun.more_potion_effects.api.IMoreMobEffect;
 import com.yixi_xun.more_potion_effects.mob_effects.*;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -20,12 +20,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 import static com.yixi_xun.more_potion_effects.MPEConfig.*;
 import static com.yixi_xun.more_potion_effects.api.ConfigHelper.evaluate;
@@ -36,16 +31,18 @@ import static net.neoforged.neoforge.event.entity.living.MobEffectEvent.Applicab
 
 @EventBusSubscriber
 public class EffectEvents {
-
-    public static final Map<UUID, Integer> effectDuration = new HashMap<>();
-
     @SubscribeEvent
     public static void onAdded(MobEffectEvent.Added event) {
-        handleDeathAdded(event.getEntity(), event.getEffectInstance());
-        handleExtensionEffect(event.getEntity(), event.getEffectInstance());
-        handleSideEffect(event.getEntity(), event.getEffectInstance());
-        handleUpgradeEffect(event.getEntity(), event.getEffectInstance());
-        handleQuickDrawSkeleton(event.getEntity(), event.getEffectInstance());
+        LivingEntity living = event.getEntity();
+        MobEffectInstance instance = event.getEffectInstance();
+
+        if (instance.getEffect().value() instanceof IMoreMobEffect effect) {
+            effect.onEffectAdded(living, instance);
+        }
+
+        handleExtensionEffect(living, instance);
+        handleSideEffect(living, instance);
+        handleQuickDrawSkeleton(living, instance);
     }
 
     private static void handleSideEffect(LivingEntity entity, MobEffectInstance instance) {
@@ -123,32 +120,6 @@ public class EffectEvents {
         }
     }
 
-    private static void handleUpgradeEffect(LivingEntity entity, MobEffectInstance instance) {
-        if (instance.getEffect() != UPGRADE) return;
-
-        int appliedLevel = instance.getAmplifier() + 1;
-        Set<String> exclusionSet = new HashSet<>(UPGRADE_EXCLUSION.get());
-
-        entity.getActiveEffects().stream()
-                .filter(e -> e.getEffect() != UPGRADE)
-                .filter(e -> e.getAmplifier() < appliedLevel)
-                .forEach(effect -> {
-                    ResourceLocation effectKey = BuiltInRegistries.MOB_EFFECT.getKey(effect.getEffect().value());
-                    if (effectKey != null && !exclusionSet.contains(effectKey.toString())) {
-                        int newAmplifier = entity.getRandom().nextInt(effect.getAmplifier() + 1, appliedLevel + 1);
-                        effect.update(new MobEffectInstance(
-                                effect.getEffect(),
-                                effect.getDuration(),
-                                newAmplifier,
-                                effect.isAmbient(),
-                                effect.isVisible(),
-                                effect.showIcon()
-                        ));
-                    }
-                });
-        entity.removeEffect(UPGRADE);
-    }
-
     private static void handleQuickDrawSkeleton(LivingEntity entity, MobEffectInstance instance) {
         if (entity instanceof AbstractSkeleton target && instance.getEffect() == QUICK_DRAW) {
             target.goalSelector.getAvailableGoals().stream()
@@ -221,11 +192,11 @@ public class EffectEvents {
     }
 
     private static void handleDispel(LivingEntity entity, MobEffectInstance newEffect) {
-        if (newEffect.getEffect() == DISPEL) {
+        if (newEffect.getEffect().is(DISPEL)) {
             int dispelLevel = newEffect.getAmplifier();
             List<MobEffectInstance> effectsToProcess = entity.getActiveEffects().stream()
                     .filter(effect -> effect.getEffect().value().getCategory() == MobEffectCategory.BENEFICIAL)
-                    .filter(effect -> effect.getEffect() != DISPEL)
+                    .filter(effect -> !effect.getEffect().is(DISPEL))
                     .toList();
 
             for (MobEffectInstance effect : effectsToProcess) {
@@ -267,7 +238,7 @@ public class EffectEvents {
             if (shouldApply && effectToApply.getEffect() != POTION_ANTAGONISM) {
                 int antagonismLevel = antagonismEffect.getAmplifier() + 1;
                 int appliedLevel = effectToApply.getAmplifier() + 1;
-                int newLevel = Math.max(0, appliedLevel - antagonismLevel + 2);
+                int newLevel = appliedLevel - antagonismLevel + 2;
                 int newDuration = Math.max(1, (int) evaluate(POTION_ANTAGONISM_REDUCE.get(), "duration", effectToApply.getDuration(), "effectLevel", antagonismLevel));
 
                 if (newLevel < 0) return;
@@ -307,11 +278,10 @@ public class EffectEvents {
         }
 
         // 调用 IMobEffectRemovable 接口的移除处理方法
-        if (event.getEffect().value() instanceof IMobEffectRemovable effect) {
+        if (event.getEffect().value() instanceof IMoreMobEffect effect) {
             effect.onEffectRemoved(entity, instance);
         }
 
-        handleDeathRemoval(entity, instance);
         handleRankEffectRemoval(entity, instance, event);
         handleLockEffectRemoval(entity, nbt, instance, event);
 
@@ -333,46 +303,16 @@ public class EffectEvents {
             }
 
             if (event.getEffect() == LOCK) {
-                if (effectInstance.getDuration() <= 1) {
+                if (effectInstance.endsWithin(1)) {
                     return;
                 }
                 event.setCanceled(true);
-
-                persistentData.putBoolean("locking_in_progress", true);
-                entity.removeEffect(LOCK);
-                entity.addEffect(new MobEffectInstance(
-                        LOCK,
-                        (int) (effectInstance.getDuration() - 1200f / (effectInstance.getAmplifier() + 1f)),
-                        effectInstance.getAmplifier(),
-                        effectInstance.isAmbient(),
-                        effectInstance.isVisible(),
-                        effectInstance.showIcon()
-                ));
-                persistentData.remove("locking_in_progress");
             }
         }
     }
 
-    private static void handleDeathAdded(LivingEntity entity, MobEffectInstance instance) {
-        if (instance.getEffect() != DEATH) return;
-        effectDuration.put(entity.getUUID(), instance.getDuration());
-    }
-
-    private static void handleDeathRemoval(LivingEntity entity, MobEffectInstance removedInstance) {
-        if (removedInstance.getEffect() != DEATH) return;
-        int effectLevel = removedInstance.getAmplifier() + 1;
-        if (effectLevel <= 6) {
-            int duration = effectDuration.getOrDefault(entity.getUUID(), 100);
-            entity.addEffect(new MobEffectInstance(
-                    DEATH,
-                    duration,
-                    effectLevel
-            ));
-        }
-    }
-
     private static void handleRankEffectRemoval(LivingEntity entity, MobEffectInstance effectInstance, MobEffectEvent.Remove event) {
-        if (event.getEffect() != RANK) return;
+        if (!event.getEffect().is(RANK)) return;
         int targetAmplifier = effectInstance.getAmplifier() - 1;
         List<Holder<MobEffect>> effectsToRemove = entity.getActiveEffects().stream()
                 .filter(e -> e.getAmplifier() == targetAmplifier)
@@ -385,6 +325,19 @@ public class EffectEvents {
                 effectInstance.getAmplifier()
         );
         forceUpdateEffect(entity, RANK, newRank, null);
+    }
+
+    @SubscribeEvent
+    public static void onEffectExpired(MobEffectEvent.Expired event) {
+        LivingEntity entity = event.getEntity();
+        MobEffectInstance instance = event.getEffectInstance();
+
+        if (instance == null) return;
+
+        if (instance.getEffect().value() instanceof IMoreMobEffect effect) {
+            effect.onEffectExpired(entity, instance);
+            effect.onEffectRemoved(entity, instance);
+        }
     }
 
     private static void handleDispelContinuous(LivingEntity entity, MobEffectInstance effectToApply, CompoundTag persistentData, MobEffectEvent.Applicable event) {
@@ -412,7 +365,7 @@ public class EffectEvents {
     }
 
     private static void handleFearCalming(LivingEntity entity, MobEffectInstance effectToApply, MobEffectEvent.Applicable event) {
-        if (effectToApply.getEffect() == FEAR) {
+        if (effectToApply.getEffect().is(FEAR)) {
             MobEffectInstance calmingEffect = entity.getEffect(CALMING);
             if (calmingEffect != null && calmingEffect.getAmplifier() + 1 >= effectToApply.getAmplifier() + 1) {
                 event.setResult(DO_NOT_APPLY);

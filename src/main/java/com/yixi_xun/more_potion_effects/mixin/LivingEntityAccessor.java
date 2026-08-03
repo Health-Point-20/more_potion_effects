@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 import javax.annotation.Nullable;
 
 @Mixin(LivingEntity.class)
-public interface LivingEntityMixin extends IEffectAccessor {
+public interface LivingEntityAccessor extends IEffectAccessor {
 
     @Invoker("onEffectAdded")
     void callOnEffectAdded(MobEffectInstance effect, @Nullable Entity source);
@@ -21,7 +21,6 @@ public interface LivingEntityMixin extends IEffectAccessor {
     @Invoker("onEffectRemoved")
     void callOnEffectRemoved(MobEffectInstance effectInstance);
 
-    // 使用@Accessor访问字段，方法名符合规则
     @Accessor("effectsDirty")
     void setEffectsDirty(boolean dirty);
 }

@@ -5,7 +5,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodData;
@@ -126,9 +125,9 @@ public class MPEPlayerHandler {
     }
 
     public static void onPlayerLoggedOutHandler(PlayerEvent.PlayerLoggedOutEvent event) {
-        Entity player = event.getEntity();
-        KineticMobEffect.previousPos.remove(player);
-        KineticMobEffect.velocities.remove(player);
+        Player player = event.getEntity();
+        KineticMobEffect.previousPos.remove(player.getUUID());
+        KineticMobEffect.velocities.remove(player.getUUID());
     }
 
     public static void onLivingEatingHandler(LivingEntityUseItemEvent.Finish event) {
@@ -144,36 +143,46 @@ public class MPEPlayerHandler {
                 FoodData foodData = player.getFoodData();
                 CompoundTag persistentData = player.getPersistentData();
 
+                // 获取当前玩家饱食度状态
                 int currentFoodLevel = foodData.getFoodLevel();
                 float currentSaturationLevel = foodData.getSaturationLevel();
 
+                // 计算食物提供的营养值
                 int foodNutrition = foodProperties.nutrition();
                 float foodSaturationModifier = foodProperties.saturation();
 
+                // 增幅后的营养值
                 float modified = (float) evaluate(FEAST_FOOD_ENHANCED.get(), "effectLevel", level);
                 int enhancedNutrition = (int) (foodNutrition * modified);
-                float enhancedSaturation = foodSaturationModifier * modified;
+                float enhancedSaturation = foodNutrition * foodSaturationModifier * 2.0F * modified;
 
+                // 获取之前累积的溢出值
                 int storedOverflowNutrition = persistentData.getInt("feast_overflow_nutrition");
                 float storedOverflowSaturation = persistentData.getFloat("feast_overflow_saturation");
 
+                // 计算食用后的理论总饱食度（包括已存储的溢出值）
                 int totalNutrition = currentFoodLevel + enhancedNutrition + storedOverflowNutrition;
                 float totalSaturation = currentSaturationLevel + enhancedSaturation + storedOverflowSaturation;
 
+                // 存储溢出饱食度
                 if (totalNutrition > 19) {
+                    // 设置为19使玩家可以持续进食
                     foodData.setFoodLevel(19);
                     persistentData.putInt("feast_overflow_nutrition", totalNutrition - 19);
                 } else {
+                    // 填补饱食度
                     foodData.setFoodLevel(totalNutrition);
                     persistentData.remove("feast_overflow_nutrition");
                 }
 
-                if (totalSaturation > 19) {
+                // 存储溢出饱和度
+                int newFoodLevel = foodData.getFoodLevel();
+                if (totalSaturation > newFoodLevel) {
                     foodData.setExhaustion(0);
-                    foodData.setSaturation(19);
-                    persistentData.putFloat("feast_overflow_saturation", totalSaturation - 19);
+                    foodData.setSaturation(newFoodLevel);    // 顶到当前上限
+                    persistentData.putFloat("feast_overflow_saturation", totalSaturation - newFoodLevel);
                 } else {
-                    foodData.setSaturation(totalSaturation);
+                    foodData.setSaturation(totalSaturation); // 没超限，直接设置
                     persistentData.remove("feast_overflow_saturation");
                 }
             }

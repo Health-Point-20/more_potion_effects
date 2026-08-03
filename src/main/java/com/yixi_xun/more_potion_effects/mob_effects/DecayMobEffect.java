@@ -1,18 +1,19 @@
 package com.yixi_xun.more_potion_effects.mob_effects;
 
-import com.yixi_xun.more_potion_effects.api.IMobEffectRemovable;
+import com.yixi_xun.more_potion_effects.api.IMoreMobEffect;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
 
-public class DecayMobEffect extends MobEffect implements IMobEffectRemovable {
+public class DecayMobEffect extends MobEffect implements IMoreMobEffect {
 
     private static final ResourceLocation HEALTH_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("more_potion_effects", "decay_health");
 
@@ -38,8 +39,8 @@ public class DecayMobEffect extends MobEffect implements IMobEffectRemovable {
             double decayHealth = entity.getPersistentData().getDouble("decay_health");
             double currentMaxHealth = entity.getAttributeValue(Attributes.MAX_HEALTH);
 
-            if (currentMaxHealth - Math.pow(2, amplifier) > 0) {
-                decayHealth += Math.pow(2, amplifier);
+            if (currentMaxHealth - Math.pow(2, level) > 0) {
+                decayHealth += Math.pow(2, level);
             } else {
                 decayHealth += currentMaxHealth - 0.01;
             }
@@ -47,9 +48,12 @@ public class DecayMobEffect extends MobEffect implements IMobEffectRemovable {
             entity.getPersistentData().putDouble("decay_health", decayHealth);
 
             // 更新最大生命值属性 - 使用ResourceLocation方式
-            entity.getAttribute(Attributes.MAX_HEALTH).removeModifier(HEALTH_MODIFIER_ID);
-            entity.getAttribute(Attributes.MAX_HEALTH).addTransientModifier(
-                    new AttributeModifier(HEALTH_MODIFIER_ID, -decayHealth, AttributeModifier.Operation.ADD_VALUE));
+            AttributeInstance maxHealth = entity.getAttribute(Attributes.MAX_HEALTH);
+            if (maxHealth != null) {
+                maxHealth.removeModifier(HEALTH_MODIFIER_ID);
+                maxHealth.addTransientModifier(
+                        new AttributeModifier(HEALTH_MODIFIER_ID, -decayHealth, AttributeModifier.Operation.ADD_VALUE));
+            }
 
             // 如果当前生命值超过最大生命值，调整生命值
             if (entity.getHealth() > entity.getAttributeValue(Attributes.MAX_HEALTH)) {
@@ -70,7 +74,10 @@ public class DecayMobEffect extends MobEffect implements IMobEffectRemovable {
     @Override
     public void onEffectRemoved(@NotNull LivingEntity entity, MobEffectInstance instance) {
         // 移除属性修改器
-        entity.getAttribute(Attributes.MAX_HEALTH).removeModifier(HEALTH_MODIFIER_ID);
+        AttributeInstance maxHealth = entity.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHealth != null) {
+            maxHealth.removeModifier(HEALTH_MODIFIER_ID);
+        }
         // 重置持久化数据
         entity.getPersistentData().putDouble("decay_health", 0);
         entity.getPersistentData().putDouble("decay_time", 0);

@@ -1,10 +1,11 @@
 package com.yixi_xun.more_potion_effects.event;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.entity.LivingEntity;
+import com.yixi_xun.more_potion_effects.event.handler.MPECombatHandler;
+import com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.GameShuttingDownEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityTeleportEvent;
 import net.neoforged.neoforge.event.entity.EntityTravelToDimensionEvent;
@@ -15,14 +16,10 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import static com.yixi_xun.more_potion_effects.event.handler.MPECombatHandler.*;
-import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onEntityJoinWorldHandler;
-import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onEntityJumpHandler;
-import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onEntityTeleportHandler;
-import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onEntityTravelToDimensionHandler;
-import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onLivingSetAttackTargetHandler;
+import static com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.*;
 import static com.yixi_xun.more_potion_effects.event.handler.MPEEnchantmentHandler.*;
+import static com.yixi_xun.more_potion_effects.event.handler.MPEGameHandler.*;
 import static com.yixi_xun.more_potion_effects.event.handler.MPEPlayerHandler.*;
-import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.PIERCE;
 
 @EventBusSubscriber
 public class MPEEvent {
@@ -32,23 +29,30 @@ public class MPEEvent {
         onHealHandler(event);
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onEntityAttacked(LivingIncomingDamageEvent event) {
         onAttackHandler(event);
-        if (!event.isCanceled()) {
-            onHurtHandler(event);
-        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onEntityHurt(LivingIncomingDamageEvent event) {
+        onHurtHandler(event);
     }
 
     @SubscribeEvent
     public static void onEntityDamage(LivingDamageEvent.Pre event) {
-        onDamageHandler(event);
+        onDamagePreHandler(event);
+    }
+
+    @SubscribeEvent
+    public static void onEntityDamage(LivingDamageEvent.Post event) {
+        onDamagePostHandler(event);
     }
 
     @SubscribeEvent
     public static void onEntityDeath(LivingDeathEvent event) {
-        com.yixi_xun.more_potion_effects.event.handler.MPEEntityHandler.onLivingDeathHandler(event);
-        com.yixi_xun.more_potion_effects.event.handler.MPECombatHandler.onLivingDeathHandler(event);
+        MPECombatHandler.onLivingDeathHandler(event);
+        MPEEntityHandler.onLivingDeathHandler(event);
     }
 
     @SubscribeEvent
@@ -108,26 +112,17 @@ public class MPEEvent {
 
     @SubscribeEvent
     public static void onProjectileImpact(ProjectileImpactEvent event) {
-        // 穿透效果
-        if (event.getRayTraceResult() instanceof net.minecraft.world.phys.EntityHitResult hitResult
-                && event.getProjectile() instanceof net.minecraft.world.entity.projectile.AbstractArrow arrow
-                && hitResult.getEntity() instanceof LivingEntity
-                && arrow.getOwner() instanceof LivingEntity shooter) {
-            MobEffectInstance pierceEffect = shooter.getEffect(PIERCE);
-            if (pierceEffect != null) {
-                CompoundTag data = arrow.getPersistentData();
-                if (!data.contains("extra_pierce")) {
-                    data.putBoolean("extra_pierce", true);
-                    ((com.yixi_xun.more_potion_effects.mixin.AbstractArrowAccessor) arrow)
-                            .invokeSetPierceLevel((byte) (arrow.getPierceLevel() + pierceEffect.getAmplifier() + 1));
-                }
-            }
-        }
+        onProjectileImpactHandler(event);
     }
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
-        // 服务器刻处理
+        onServerTickHandler(event);
+    }
+
+    @SubscribeEvent
+    public static void onGameShutdown(GameShuttingDownEvent event) {
+        onGameStoppingHandler(event);
     }
 
     // ==================== 附魔事件 ====================

@@ -1,8 +1,9 @@
 package com.yixi_xun.more_potion_effects.mob_effects;
 
-import com.yixi_xun.more_potion_effects.MPEConfig;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import com.yixi_xun.more_potion_effects.api.IEffectAccessor;
+import com.yixi_xun.more_potion_effects.api.IMoreMobEffect;
+import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -12,40 +13,46 @@ import org.jetbrains.annotations.NotNull;
 import java.util.HashSet;
 import java.util.Set;
 
+import static com.yixi_xun.more_potion_effects.MPEConfig.UPGRADE_EXCLUSION;
+import static com.yixi_xun.more_potion_effects.MorePotionEffectsMod.queueServerWork;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.UPGRADE;
 
-public class UpgradeMobEffect extends MobEffect {
+public class UpgradeMobEffect extends MobEffect implements IMoreMobEffect {
 
     public UpgradeMobEffect() {
         super(MobEffectCategory.BENEFICIAL, -3368449);
     }
 
     @Override
-    public boolean applyEffectTick(@NotNull LivingEntity entity, int amplifier) {
-        if (entity.level().isClientSide()) return false;
+    public boolean applyEffectTick(@NotNull LivingEntity entity, int amplifier) {return true;}
 
-        int appliedLevel = amplifier + 1;
-        Set<String> exclusionSet = new HashSet<>(MPEConfig.UPGRADE_EXCLUSION.get());
+    @Override
+    public void onEffectAdded(LivingEntity entity, MobEffectInstance instance) {
+        int appliedLevel = instance.getAmplifier() + 1;
+        Set<String> exclusionSet = new HashSet<>(UPGRADE_EXCLUSION.get());
 
         entity.getActiveEffects().stream()
-                .filter(e -> !e.getEffect().equals(UPGRADE))
+                .filter(e -> !e.getEffect().is(UPGRADE))
                 .filter(e -> e.getAmplifier() < appliedLevel)
-                .forEach(effect -> {
-                    ResourceLocation effectKey = BuiltInRegistries.MOB_EFFECT.getKey(effect.getEffect().value());
-                    if (effectKey != null && !exclusionSet.contains(effectKey.toString())) {
-                        int newAmplifier = entity.getRandom().nextInt(effect.getAmplifier() + 1, appliedLevel + 1);
-                        effect.update(new MobEffectInstance(
-                                effect.getEffect(),
-                                effect.getDuration(),
-                                newAmplifier,
-                                effect.isAmbient(),
-                                effect.isVisible(),
-                                effect.showIcon()
-                        ));
-                    }
-                });
-        entity.removeEffect(UPGRADE);
-        return true;
+                .filter(e -> {
+                    String effectKey = e.getEffect().getRegisteredName();
+                    return !exclusionSet.contains(effectKey);
+                })
+                .forEach(effect -> queueServerWork(0, () -> {
+                    int newAmplifier = entity.getRandom().nextInt(effect.getAmplifier() + 1, appliedLevel + 1);
+                    var newInstance = new MobEffectInstance(
+                            effect.getEffect(),
+                            effect.getDuration(),
+                            newAmplifier,
+                            effect.isAmbient(),
+                            effect.isVisible(),
+                            effect.showIcon());
+                    effect.update(newInstance);
+                    ((IEffectAccessor)entity).callOnEffectUpdated(newInstance, true, entity);
+                    effect.onEffectStarted(entity);
+                    if (entity instanceof ServerPlayer player) player.connection.send(new ClientboundUpdateMobEffectPacket(player.getId(), newInstance, false));
+                }));
+        queueServerWork(0, () -> entity.removeEffect(UPGRADE));
     }
 
     @Override

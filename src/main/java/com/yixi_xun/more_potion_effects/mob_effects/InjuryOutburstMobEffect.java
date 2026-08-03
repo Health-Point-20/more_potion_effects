@@ -1,6 +1,6 @@
 package com.yixi_xun.more_potion_effects.mob_effects;
 
-import com.yixi_xun.more_potion_effects.api.IMobEffectRemovable;
+import com.yixi_xun.more_potion_effects.api.IMoreMobEffect;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
@@ -10,7 +10,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
 
-public class InjuryOutburstMobEffect extends MobEffect implements IMobEffectRemovable {
+public class InjuryOutburstMobEffect extends MobEffect implements IMoreMobEffect {
 
     public InjuryOutburstMobEffect() {
         super(MobEffectCategory.HARMFUL, -16711681);
