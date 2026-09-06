@@ -8,6 +8,8 @@ import com.yixi_xun.more_potion_effects.MorePotionEffectsMod;
 import com.yixi_xun.more_potion_effects.mob_effects.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.OwnableEntity;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 

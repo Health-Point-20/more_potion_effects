@@ -1,7 +1,10 @@
 package com.yixi_xun.more_potion_effects.mob_effects;
 
+import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -14,6 +17,7 @@ import net.minecraft.world.item.alchemy.PotionContents;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.yixi_xun.more_potion_effects.MPEConfig.*;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.LOCK;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.REUSE;
 
@@ -34,28 +38,55 @@ public class ReuseMobEffect extends MobEffect {
 			return false;
 		}
 
+		List<? extends String> select = REUSE_EFFECT_SELECTED.get();
+		List<? extends String> exclusion = REUSE_EFFECT_EXCLUSION.get();
+
 		// 获取当前所有效果
-		List<MobEffectInstance> activeEffects = entity.getActiveEffects().stream()
+		List<MobEffectInstance> effects = entity.getActiveEffects().stream()
 				.filter(e -> e.getEffect() != REUSE)
 				.collect(Collectors.toList());
+
+		if (!select.isEmpty()) {
+			// 白名单模式：只保留白名单内的效果
+			effects.removeIf(instance -> {
+				Holder<MobEffect> effect = instance.getEffect();
+				ResourceLocation effectKey = BuiltInRegistries.MOB_EFFECT.getKey(effect.value());
+				return effectKey == null || !select.contains(effectKey.toString());
+			});
+		} else {
+			// 黑名单模式：移除黑名单内的效果
+			if (!exclusion.isEmpty()) {
+				effects.removeIf(instance -> {
+					Holder<MobEffect> effect = instance.getEffect();
+					ResourceLocation effectKey = BuiltInRegistries.MOB_EFFECT.getKey(effect.value());
+					return effectKey != null && exclusion.contains(effectKey.toString());
+				});
+			}
+		}
+
 		// 如果没有效果需要转移，则返回
-		if (activeEffects.isEmpty()) {
+		if (effects.isEmpty()) {
 			return false;
+		}
+
+		// 清除所有效果
+		for (MobEffectInstance instance : effects) {
+			entity.removeEffect(instance.getEffect());
 		}
 
 		// 创建新的药水瓶
 		ItemStack potion = new ItemStack(Items.POTION);
 
 		// 根据效果信息动态设置药水瓶名称和颜色
-		String potionName = generatePotionName(entity, activeEffects);
+		String potionName = generatePotionName(entity, effects);
 		potion.set(DataComponents.CUSTOM_NAME, Component.literal(potionName));
 
 		// 设置药水
-		int potionColor = calculatePotionColor(activeEffects);
+		int potionColor = calculatePotionColor(effects);
 		PotionContents coloredContents = new PotionContents(
 				Optional.empty(),
 				Optional.of(potionColor),
-				activeEffects
+				effects
 		);
 		potion.set(DataComponents.POTION_CONTENTS, coloredContents);
 
@@ -63,9 +94,9 @@ public class ReuseMobEffect extends MobEffect {
 		ItemEntity spawnedPotion = entity.spawnAtLocation(potion);
 		if (spawnedPotion != null) {
 			spawnedPotion.setNoPickUpDelay();
-			// 清除所有效果
-			entity.removeAllEffects();
 		}
+		// 清除复用效果
+		entity.removeEffect(REUSE);
 
 		return true;
 	}
@@ -211,9 +242,9 @@ public class ReuseMobEffect extends MobEffect {
 			int avgBlue = (int) (totalBlue / totalWeight);
 
 			// 确保颜色值在有效范围内
-			avgRed = Math.min(255, Math.max(0, avgRed));
-			avgGreen = Math.min(255, Math.max(0, avgGreen));
-			avgBlue = Math.min(255, Math.max(0, avgBlue));
+			avgRed = Math.clamp(avgRed, 0, 255);
+			avgGreen = Math.clamp(avgGreen, 0, 255);
+			avgBlue = Math.clamp(avgBlue, 0, 255);
 
 			// 增强颜色饱和度，避免颜色过于暗淡
 			if (avgRed + avgGreen + avgBlue < 100) {

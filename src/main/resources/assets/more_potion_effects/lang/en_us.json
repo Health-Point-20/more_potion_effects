@@ -1,4 +1,7 @@
 {
+  "key.categories.more_potion_effects": "More Potion Effects",
+  "key.more_potion_effects.open_recipe_editor": "Open Brewing Recipe Editor",
+
   "block.more_potion_effects.compressed_air": "Compressed Air Block",
 
   "death.attack.highly_toxic_damage": "%1$s died of highly toxic",

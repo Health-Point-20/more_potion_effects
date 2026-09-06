@@ -14,6 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import org.jetbrains.annotations.Nullable;
 
 import static com.yixi_xun.more_potion_effects.api.ConfigHelper.evaluate;
 import static com.yixi_xun.more_potion_effects.init.MorePotionEffectsModMobEffects.*;
@@ -89,23 +90,85 @@ public class MPEPlayerHandler {
         BlockState state = event.getTargetBlock();
         MobEffectInstance enhanceDigging = player.getEffect(ENHANCE_DIGGING);
 
-        if (enhanceDigging != null) {
-            Item tool = player.getMainHandItem().getItem();
-            
-            if (isRightTool(state, tool)) {
-                event.setCanHarvest(true);
-            }
+        if (enhanceDigging == null) return;
+
+        // 如果原本就能挖，不需要干预
+        if (event.canHarvest()) return;
+
+        ItemStack heldStack = player.getMainHandItem();
+        Item tool = heldStack.getItem();
+
+        // ★ 获取当前工具的 Tier
+        Tier currentTier = null;
+        if (tool instanceof TieredItem tieredItem) {
+            currentTier = tieredItem.getTier();
+        }
+
+        int amplifier = enhanceDigging.getAmplifier() + 1;
+
+        // ★ 判断是否为原版挖掘等级
+        boolean isVanillaTier = isVanillaTier(currentTier);
+
+        if (!isVanillaTier) {
+            // 视为超过下界合金级
+            event.setCanHarvest(true);
+            return;
+        }
+
+        //  下界合金级以内：计算有效挖掘等级
+        int toolLevel = getVanillaToolLevel(currentTier);
+        int effectiveLevel = toolLevel + amplifier;
+        int requiredLevel = getRequiredLevel(state);
+
+        // 有效等级 >= 所需等级 → 允许挖掘
+        if (effectiveLevel >= requiredLevel && requiredLevel > 0) {
+            event.setCanHarvest(true);
         }
     }
 
-    private static boolean isRightTool(BlockState state, Item tool) {
-        if (state.requiresCorrectToolForDrops()) {
-            if (state.is(BlockTags.MINEABLE_WITH_PICKAXE)) return tool instanceof PickaxeItem;
-            if (state.is(BlockTags.MINEABLE_WITH_AXE)) return tool instanceof AxeItem;
-            if (state.is(BlockTags.MINEABLE_WITH_HOE)) return tool instanceof HoeItem;
-            if (state.is(BlockTags.MINEABLE_WITH_SHOVEL)) return tool instanceof ShovelItem;
+
+    /**
+     * 判断是否为原版 Tier，如果该 Tier 不是原版 Tier则视为超过下界合金
+     */
+    private static boolean isVanillaTier(@Nullable Tier tier) {
+        if (tier == null) return false;
+        // 原版 Tiers 枚举中的所有值
+        for (Tiers vanilla : Tiers.values()) {
+            if (vanilla == tier) return true;
         }
-        return true;
+        return false;
+    }
+
+    /**
+     * 获取原版 Tier 对应的整数等级
+     * 仅用于下界合金级以内的计算
+     */
+    private static int getVanillaToolLevel(@Nullable Tier tier) {
+        if (tier == null) return 0;
+        // 利用原版 Tiers 枚举的 ordinal 作为等级
+        // WOOD=0, STONE=1, IRON=2, DIAMOND=3, NETHERITE=4, GOLD=0
+        for (int i = 0; i < Tiers.values().length; i++) {
+            if (Tiers.values()[i] == tier) {
+                // Gold 特殊处理：虽然 ordinal=5，但实际挖掘等级等同于 Stone
+                if (tier == Tiers.GOLD) return 1;
+                return i;
+            }
+        }
+        return 0; // 非原版 Tier 不应到达这里
+    }
+
+    /**
+     * 获取方块所需的最低原版挖掘等级
+     * 对于模组方块（不在原版 needs_xxx tag 中），返回 -1 表示"未知"
+     */
+    private static int getRequiredLevel(BlockState state) {
+        if (state.is(BlockTags.NEEDS_DIAMOND_TOOL)) return 3;
+        if (state.is(BlockTags.NEEDS_IRON_TOOL)) return 2;
+        if (state.is(BlockTags.NEEDS_STONE_TOOL)) return 1;
+        if (!state.requiresCorrectToolForDrops()) return 0;
+        // 需要正确工具但不在原版 needs_xxx tag 中 → 模组方块
+        // 返回 -1 表示无法处理
+        return -1;
     }
 
     public static void onItemTossHandler(ItemTossEvent event) {

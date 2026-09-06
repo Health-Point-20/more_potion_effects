@@ -1,4 +1,6 @@
 {
+  "key.categories.more_potion_effects": "更多药水效果",
+  "key.more_potion_effects.open_recipe_editor": "打开酿造配方编辑器",
   "block.more_potion_effects.compressed_air": "压缩空气方块",
   "death.attack.highly_toxic_damage": "%1$s 死于剧毒",
   "death.attack.highly_toxic_damage.item": "%1$s was killed by %2$s using %3$s",

@@ -57,19 +57,6 @@ public class FlightMobEffect extends MobEffect implements IMoreMobEffect {
             if (!player.mayFly()) {
                 Objects.requireNonNull(player.getAttribute(NeoForgeMod.CREATIVE_FLIGHT)).addPermanentModifier(
                         new AttributeModifier(FLIGHT_EFFECT_ID, 1.0, AttributeModifier.Operation.ADD_VALUE));
-                player.getAbilities().flying = true;
-                
-                // 恢复飞行速度（基于保存的速度增量）
-                float speedDelta = player.getPersistentData().getFloat(FLIGHT_SPEED_DELTA_KEY);
-                if (speedDelta > 0) {
-                    float currentSpeed = player.getAbilities().getFlyingSpeed();
-                    float targetSpeed = currentSpeed + speedDelta;
-                    // 如果当前速度低于目标速度，逐步增加
-                    if (currentSpeed < targetSpeed && currentSpeed < 0.1f) {
-                        player.getAbilities().setFlyingSpeed(Math.min(currentSpeed + 0.001f, targetSpeed));
-                    }
-                }
-                
                 player.onUpdateAbilities();
             }
         }

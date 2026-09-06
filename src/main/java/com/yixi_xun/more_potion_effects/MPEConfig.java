@@ -20,6 +20,9 @@ public class MPEConfig {
     public static final ModConfigSpec.ConfigValue<String> UNYIELDING_CHANCE;
     public static final ModConfigSpec.ConfigValue<String> GLUTTONY_SPEED_MULTIPLIER;
     public static final ModConfigSpec.ConfigValue<String> FEAST_FOOD_ENHANCED;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> REUSE_EFFECT_EXCLUSION;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> REUSE_EFFECT_SELECTED;
+
 
     // Damage modifier configs
     public static final ModConfigSpec.ConfigValue<String> MELEE_DOMAIN_DISTANCE;
@@ -141,16 +144,14 @@ public class MPEConfig {
         SUPER_DEATH_MODE = BUILDER.comment("是否启用超级死亡模式（高等级死亡效果会移除实体）。").define("Super Death Mode", false);
         RANK_EFFECTS_ENABLED = BUILDER.comment("是否为非玩家实体添加随机效果池效果。").define("Rank Effects Enabled", true);
         SUPER_CORROSION = BUILDER.comment("是否启用超级腐蚀模式（可以腐蚀无法破坏装备）。").define("Super Corrosion", false);
-
-
-        BUILDER.push("Virus");
         VIRUS_BASE_RADIUS = BUILDER.comment("病毒效果基础传染半径。").define("Virus Base Radius", 2.0);
         VIRUS_INFECTION_SPEED = BUILDER.comment("病毒感染进度累积基础速度（每tick）。").define("Virus Infection Speed", 1.0);
         VIRUS_THRESHOLD_FACTOR = BUILDER.comment("感染阈值系数（阈值 = 目标生命值 * 此系数）。").define("Virus Threshold Factor", 10.0);
         VIRUS_DAMAGE_INTERVAL = BUILDER.comment("伤害累积时间（ticks）。").define("Virus Damage Interval", 40.0);
         VIRUS_DAMAGE_FACTOR = BUILDER.comment("伤害系数（伤害 = 累积感染伤害 + 最大生命值 * 此系数 * (等级+1)）。").define("Virus Damage Factor", 0.01);
         VIRUS_INFECTED_TIME_CAP_FACTOR = BUILDER.comment("感染时间上限系数（上限 = 最大生命值 * 此系数）。").define("Virus Infected Time Cap Factor", 3.0);
-        BUILDER.pop();
+        REUSE_EFFECT_EXCLUSION = BUILDER.comment("[白名单]能被复用效果回收的效果").defineList("Reuse Effect Exclusion", List.of(), () -> "", entry -> true);
+        REUSE_EFFECT_SELECTED = BUILDER.comment("[黑名单]能被汲魔效果窃取到的效果。（白名单为空时生效）").defineList("Reuse Effect Selected", List.of(), () -> "", entry -> true);
 
         BUILDER.pop();
 

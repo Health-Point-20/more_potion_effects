@@ -21,12 +21,15 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraft.world.item.CreativeModeTabs;
 import net.neoforged.neoforge.common.brewing.IBrewingRecipe;
 import com.yixi_xun.more_potion_effects.MorePotionEffectsMod;
 import net.neoforged.neoforge.event.brewing.RegisterBrewingRecipesEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,7 +47,9 @@ public class PotionBrewingSystem {
             .registerTypeAdapter(EffectConfig.class, new EffectConfig.Deserializer())
             .create();
     private static final List<ItemStack> GENERATED_POTION_STACKS = new ArrayList<>();
-    private static final List<IngredientBrewingRecipe> REGISTERED_INGREDIENT_RECIPES = new CopyOnWriteArrayList<>();
+    // 当前生效的配方列表。注册到游戏的是读取该列表的"活"包装配方（见 LiveBrewingRecipe），
+    // 因此热重载时只需替换列表内容，服务端与客户端的酿造逻辑即时生效。
+    private static final List<IngredientBrewingRecipe> LIVE_RECIPES = new CopyOnWriteArrayList<>();
 
     public static List<ItemStack> getCustomsPotionStacks() {
         synchronized (GENERATED_POTION_STACKS) {
@@ -60,39 +65,59 @@ public class PotionBrewingSystem {
     }
 
     public static List<IngredientBrewingRecipe> getRegisteredIngredientRecipes() {
-        return new ArrayList<>(REGISTERED_INGREDIENT_RECIPES);
+        return new ArrayList<>(LIVE_RECIPES);
     }
 
     @SubscribeEvent
     public static void commonSetup(FMLCommonSetupEvent event) {
-        event.enqueueWork(PotionBrewingSystem::loadAndRegisterRecipes);
+        event.enqueueWork(() -> loadRecipes(true));
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void registerBrewingRecipes(RegisterBrewingRecipesEvent event) {
         event.getBuilder().addRecipe(new GunpowderConversionRecipe());
         event.getBuilder().addRecipe(new DragonBreathConversionRecipe());
-        // 将配方添加到游戏
-        for (IngredientBrewingRecipe recipe : REGISTERED_INGREDIENT_RECIPES) {
-            event.getBuilder().addRecipe(recipe);
-        }
-        MorePotionEffectsMod.LOGGER.info("Registered {} custom brewing recipes.", REGISTERED_INGREDIENT_RECIPES.size());
-        REGISTERED_INGREDIENT_RECIPES.clear();
+        // 只注册一个"活"包装配方：它在每次酿造查询时读取 LIVE_RECIPES，
+        // 因此热重载只需替换 LIVE_RECIPES 内容，无需重建 PotionBrewing。
+        event.getBuilder().addRecipe(new LiveBrewingRecipe());
+        MorePotionEffectsMod.LOGGER.info("Registered {} custom brewing recipes.", LIVE_RECIPES.size());
     }
 
-    public static void loadAndRegisterRecipes() {
+    /**
+     * 热重载：重新从本地 config 目录读取酿造配方并即时生效。
+     * 服务端与客户端各自调用（读取各自游戏实例下的 config）。
+     *
+     * @return 重载后生效的配方数量
+     */
+    public static int reloadRecipes() {
+        loadRecipes(false);
+        return LIVE_RECIPES.size();
+    }
+
+    private static void loadRecipes(boolean createExamplesIfEmpty) {
+        List<ItemStack> newStacks = new ArrayList<>();
+        List<IngredientBrewingRecipe> newRecipes = new ArrayList<>();
         try {
             Files.createDirectories(CONFIG_DIR);
             try (var paths = Files.list(CONFIG_DIR)) {
                 List<Path> jsonFiles = paths.filter(path -> path.toString().endsWith(".json")).toList();
-                jsonFiles.forEach(PotionBrewingSystem::loadRecipeFile);
-                if (jsonFiles.isEmpty()) {
+                jsonFiles.forEach(path -> loadRecipeFile(path, newStacks, newRecipes));
+                if (jsonFiles.isEmpty() && createExamplesIfEmpty) {
                     createExampleConfigs();
                 }
             }
         } catch (IOException e) {
             MorePotionEffectsMod.LOGGER.error("Failed to load brewing recipes", e);
         }
+        // 原子替换：包装配方读取的是 LIVE_RECIPES / GENERATED_POTION_STACKS 的内容，
+        // 这里整体替换后，正在被游戏引用的包装配方会立即看到新数据。
+        synchronized (GENERATED_POTION_STACKS) {
+            GENERATED_POTION_STACKS.clear();
+            GENERATED_POTION_STACKS.addAll(newStacks);
+        }
+        LIVE_RECIPES.clear();
+        LIVE_RECIPES.addAll(newRecipes);
+        MorePotionEffectsMod.LOGGER.info("Loaded {} custom brewing recipes.", LIVE_RECIPES.size());
     }
 
     private static void createExampleConfigs() throws IOException {
@@ -141,7 +166,7 @@ public class PotionBrewingSystem {
         }
     }
 
-    private static void loadRecipeFile(Path file) {
+    private static void loadRecipeFile(Path file, List<ItemStack> stacksOut, List<IngredientBrewingRecipe> recipesOut) {
         try {
             String content = Files.readString(file);
             JsonElement rootElement = JsonParser.parseString(content);
@@ -163,7 +188,7 @@ public class PotionBrewingSystem {
                 try {
                     BrewingRecipe recipe = GSON.fromJson(element, BrewingRecipe.class);
                     if (recipe.isValid()) {
-                        registerRecipe(recipe);
+                        registerRecipe(recipe, stacksOut, recipesOut);
                         MorePotionEffectsMod.LOGGER.info("Successfully registered recipe: {}", recipe);
                     } else {
                         MorePotionEffectsMod.LOGGER.warn("Skipping invalid recipe in {}: {}", file, element);
@@ -177,7 +202,7 @@ public class PotionBrewingSystem {
         }
     }
 
-    private static void registerRecipe(BrewingRecipe recipe) {
+    private static void registerRecipe(BrewingRecipe recipe, List<ItemStack> stacksOut, List<IngredientBrewingRecipe> recipesOut) {
         List<MobEffectInstance> effectInstances = new ArrayList<>();
         if (recipe.effects != null) {
             for (EffectConfig effectConfig : recipe.effects) {
@@ -234,7 +259,7 @@ public class PotionBrewingSystem {
         );
 
         // 存储成品药水
-        GENERATED_POTION_STACKS.add(outputStack.copy());
+        stacksOut.add(outputStack.copy());
 
         // 注册配方
         Potion basePotion = recipe.getBasePotion();
@@ -258,7 +283,7 @@ public class PotionBrewingSystem {
         );
 
         // 存储配方实例
-        REGISTERED_INGREDIENT_RECIPES.add(brewingRecipe);
+        recipesOut.add(brewingRecipe);
     }
 
     // 酿造配方数据类
@@ -469,7 +494,6 @@ public class PotionBrewingSystem {
 
     // 酿造配方实现
     public record IngredientBrewingRecipe(Potion basePotion, String basePotionId, Ingredient ingredient, ItemStack outputTemplate) implements IBrewingRecipe {
-
         public IngredientBrewingRecipe(Potion basePotion, String basePotionId, Ingredient ingredient, ItemStack outputTemplate) {
             this.basePotion = basePotion;
             this.basePotionId = basePotionId;
@@ -530,6 +554,64 @@ public class PotionBrewingSystem {
             result.set(DataComponents.CUSTOM_DATA, this.outputTemplate.get(DataComponents.CUSTOM_DATA));
 
             return result;
+        }
+    }
+
+    /**
+     * 单一"活"包装配方：注册到 {@link net.minecraft.world.item.alchemy.PotionBrewing} 后，
+     * 每次查询都实时读取 {@link #LIVE_RECIPES}。热重载只需替换该列表内容即可即时生效，
+     * 无需重建不可变的 PotionBrewing 实例，也无需反射或访问转换。
+     */
+    public static class LiveBrewingRecipe implements IBrewingRecipe {
+        @Override
+        public boolean isInput(@NotNull ItemStack input) {
+            for (IngredientBrewingRecipe recipe : LIVE_RECIPES) {
+                if (recipe.isInput(input)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public boolean isIngredient(@NotNull ItemStack ingredient) {
+            for (IngredientBrewingRecipe recipe : LIVE_RECIPES) {
+                if (recipe.isIngredient(ingredient)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public @NotNull ItemStack getOutput(@NotNull ItemStack input, @NotNull ItemStack ingredient) {
+            for (IngredientBrewingRecipe recipe : LIVE_RECIPES) {
+                ItemStack output = recipe.getOutput(input, ingredient);
+                if (!output.isEmpty()) {
+                    return output;
+                }
+            }
+            return ItemStack.EMPTY;
+        }
+    }
+
+    /**
+     * 失效客户端创造模式标签页缓存（{@code CreativeModeTabs.CACHED_PARAMETERS}）。
+     * 创造标签页内容为纯客户端构建，重载药水后需让下次打开背包时重建。
+     * 通过按类型反射查找静态字段，规避混淆名，仅应在客户端调用。
+     */
+    public static void invalidateCreativeTabCache() {
+        try {
+            for (Field field : CreativeModeTabs.class.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())
+                        && field.getType().getSimpleName().equals("ItemDisplayParameters")) {
+                    field.setAccessible(true);
+                    field.set(null, null);
+                    return;
+                }
+            }
+        } catch (Throwable t) {
+            MorePotionEffectsMod.LOGGER.debug("Failed to invalidate creative tab cache", t);
         }
     }
 }

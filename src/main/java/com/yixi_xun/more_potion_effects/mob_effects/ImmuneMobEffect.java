@@ -20,9 +20,13 @@ public class ImmuneMobEffect extends MobEffect {
 	}
 
 	public static Map<Holder<MobEffect>, Integer> getImmuneMap(int amplifier) {
+		List<? extends String> effectsConfig = IMMUNE_EFFECTS.get();
 		Map<Holder<MobEffect>,Integer> immuneList = new HashMap<>();
+
+		if (effectsConfig.isEmpty()) return immuneList;
+
 		// 防止数组越界
-		int max = Math.min(amplifier, IMMUNE_EFFECTS.get().size());
+		int max = Math.min(amplifier, IMMUNE_EFFECTS.get().size() - 1);
 		for (int i = 0; i <= max; i++) {
 			// 获取免疫效果的配置列联表
 			Arrays.asList(IMMUNE_EFFECTS.get().get(i).split(",")).forEach(effectConfig -> {
@@ -56,14 +60,25 @@ public class ImmuneMobEffect extends MobEffect {
 
 	private void clearEffects(LivingEntity entity, int amplifier) {
 		var immuneMap = ImmuneMobEffect.getImmuneMap(amplifier);
-		for (var effect : immuneMap.keySet()) {
-			if (entity.hasEffect(effect)) {
+
+		if (immuneMap.isEmpty()) return;
+
+		// 遍历实体身上的效果，判断是否在配置Map中
+		Collection<MobEffectInstance> activeEffects = entity.getActiveEffects();
+
+		new ArrayList<>(activeEffects).forEach(instance -> {
+			Holder<MobEffect> effect = instance.getEffect();
+
+			// 判断实体身上的效果是否在配置列表中
+			if (immuneMap.containsKey(effect)) {
 				int immuneAmplifier = immuneMap.get(effect);
-				if (immuneAmplifier >= amplifier || immuneAmplifier == -1) {
+				// 当前等级 >= 免疫阈值，或者阈值为 -1 (无条件免疫)
+				if (amplifier >= immuneAmplifier || immuneAmplifier == -1) {
 					entity.removeEffect(effect);
 				}
 			}
-		}
+		});
+
 
 		Collection<MobEffectInstance> effects = entity.getActiveEffects().stream().toList();
 		if (amplifier >= immuneMap.size() + 2) {
